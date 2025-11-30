@@ -1,82 +1,80 @@
-package detectionengine
 // Package main 是 Detection Engine 服务的入口点
 //
 // Detection Engine 负责：
 //   - 从 Kafka 消费事件
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}	logger.Info("Detection Engine stopped")	<-ctx.Done()	// 等待退出	// }	//     }	//         }	//             alertProducer.Send(alerts)	//         if alerts := detect(event, rules); len(alerts) > 0 {	//     case event := <-consumer.Events():	//         return	//     case <-ctx.Done():	//     select {	// for {	// TODO: 启动检测循环	// alertProducer, err := kafka.NewProducer(cfg.Kafka, "alerts")	// TODO: 初始化 Alert 生产者	// consumer, err := kafka.NewConsumer(cfg.Kafka)	// TODO: 初始化 Kafka 消费者	// rules, err := loadRules(cfg.RulesPath)	// TODO: 加载检测规则	}()		cancel()		logger.Info("Received signal, shutting down", zap.String("signal", sig.String()))		sig := <-sigCh	go func() {	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)	sigCh := make(chan os.Signal, 1)	// 监听系统信号	defer cancel()	ctx, cancel := context.WithCancel(context.Background())	// 创建上下文	)		zap.String("commit", GitCommit),		zap.String("version", Version),	logger.Info("Detection Engine starting",	defer logger.Sync()	}		os.Exit(1)		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)	if err != nil {	logger, err := zap.NewProduction()	// 初始化日志func main() {)	BuildTime = "unknown"	GitCommit = "unknown"	Version   = "0.1.0"var (// 版本信息)	"go.uber.org/zap"	"syscall"	"os/signal"	"os"	"fmt"	"context"import (package main//   - 生成告警发送到 Alert Manager//   - 关联分析和攻击链检测//   - 应用检测规则（Sigma/YARA）
+//   - 应用检测规则（Sigma/YARA）
+//   - 关联分析和攻击链检测
+//   - 生成告警发送到 Alert Manager
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"go.uber.org/zap"
+)
+
+// 版本信息
+var (
+	Version   = "0.1.0"
+	GitCommit = "unknown"
+	BuildTime = "unknown"
+)
+
+func main() {
+	// 初始化日志
+	logger, err := zap.NewProduction()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
+	logger.Info("Detection Engine starting",
+		zap.String("version", Version),
+		zap.String("commit", GitCommit),
+	)
+
+	// 创建上下文
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 监听系统信号
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigCh
+		logger.Info("Received signal, shutting down", zap.String("signal", sig.String()))
+		cancel()
+	}()
+
+	// TODO: 加载检测规则
+	// rules, err := loadRules(cfg.RulesPath)
+
+	// TODO: 初始化 Kafka 消费者
+	// consumer, err := kafka.NewConsumer(cfg.Kafka)
+
+	// TODO: 初始化 Alert 生产者
+	// alertProducer, err := kafka.NewProducer(cfg.Kafka, "alerts")
+
+	// TODO: 启动检测循环
+	// for {
+	//     select {
+	//     case <-ctx.Done():
+	//         return
+	//     case event := <-consumer.Events():
+	//         if alerts := detect(event, rules); len(alerts) > 0 {
+	//             alertProducer.Send(alerts)
+	//         }
+	//     }
+	// }
+
+	// 等待退出
+	<-ctx.Done()
+
+	logger.Info("Detection Engine stopped")
+}

@@ -1,80 +1,78 @@
-package alertmanager
 // Package main 是 Alert Manager 服务的入口点
 //
 // Alert Manager 负责：
 //   - 接收和聚合告警
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}	logger.Info("Alert Manager stopped")	<-ctx.Done()	// 等待退出	// }	//     }	//         processAlert(db, alert, notifiers)	//     case alert := <-consumer.Alerts():	//         return	//     case <-ctx.Done():	//     select {	// for {	// TODO: 启动告警处理循环	// notifiers := initNotifiers(cfg.Notifications)	// TODO: 初始化通知渠道	// consumer, err := kafka.NewConsumer(cfg.Kafka, "alerts")	// TODO: 初始化 Kafka 消费者	// db, err := gorm.Open(postgres.Open(cfg.Database.DSN), &gorm.Config{})	// TODO: 初始化数据库连接	}()		cancel()		logger.Info("Received signal, shutting down", zap.String("signal", sig.String()))		sig := <-sigCh	go func() {	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)	sigCh := make(chan os.Signal, 1)	// 监听系统信号	defer cancel()	ctx, cancel := context.WithCancel(context.Background())	// 创建上下文	)		zap.String("commit", GitCommit),		zap.String("version", Version),	logger.Info("Alert Manager starting",	defer logger.Sync()	}		os.Exit(1)		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)	if err != nil {	logger, err := zap.NewProduction()	// 初始化日志func main() {)	BuildTime = "unknown"	GitCommit = "unknown"	Version   = "0.1.0"var (// 版本信息)	"go.uber.org/zap"	"syscall"	"os/signal"	"os"	"fmt"	"context"import (package main//   - 告警生命周期管理//   - 告警通知（邮件/Webhook/企业微信等）//   - 告警去重和抑制
+//   - 告警去重和抑制
+//   - 告警通知（邮件/Webhook/企业微信等）
+//   - 告警生命周期管理
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"go.uber.org/zap"
+)
+
+// 版本信息
+var (
+	Version   = "0.1.0"
+	GitCommit = "unknown"
+	BuildTime = "unknown"
+)
+
+func main() {
+	// 初始化日志
+	logger, err := zap.NewProduction()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+
+	logger.Info("Alert Manager starting",
+		zap.String("version", Version),
+		zap.String("commit", GitCommit),
+	)
+
+	// 创建上下文
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// 监听系统信号
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigCh
+		logger.Info("Received signal, shutting down", zap.String("signal", sig.String()))
+		cancel()
+	}()
+
+	// TODO: 初始化数据库连接
+	// db, err := gorm.Open(postgres.Open(cfg.Database.DSN), &gorm.Config{})
+
+	// TODO: 初始化 Kafka 消费者
+	// consumer, err := kafka.NewConsumer(cfg.Kafka, "alerts")
+
+	// TODO: 初始化通知渠道
+	// notifiers := initNotifiers(cfg.Notifications)
+
+	// TODO: 启动告警处理循环
+	// for {
+	//     select {
+	//     case <-ctx.Done():
+	//         return
+	//     case alert := <-consumer.Alerts():
+	//         processAlert(db, alert, notifiers)
+	//     }
+	// }
+
+	// 等待退出
+	<-ctx.Done()
+
+	logger.Info("Alert Manager stopped")
+}
