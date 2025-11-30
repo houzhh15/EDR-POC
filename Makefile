@@ -88,11 +88,20 @@ clean:
 build-agent: build-agent-c build-agent-go
 	@echo "✅ Agent 构建完成"
 
+# CMake 生成器设置 (Windows 需要使用 MinGW Makefiles)
+ifeq ($(OS),Windows_NT)
+    CMAKE_GENERATOR := -G "MinGW Makefiles"
+    MAKE_CMD := mingw32-make
+else
+    CMAKE_GENERATOR :=
+    MAKE_CMD := $(MAKE)
+endif
+
 build-agent-c:
 	@echo "📦 构建 Agent C 核心库..."
 	@mkdir -p $(AGENT_C_DIR)/build
-	cd $(AGENT_C_DIR)/build && $(CMAKE) .. -DCMAKE_BUILD_TYPE=Release
-	cd $(AGENT_C_DIR)/build && $(MAKE)
+	cd $(AGENT_C_DIR)/build && $(CMAKE) $(CMAKE_GENERATOR) .. -DCMAKE_BUILD_TYPE=Release
+	cd $(AGENT_C_DIR)/build && $(MAKE_CMD)
 	@echo "✅ C 核心库构建完成: $(AGENT_C_DIR)/build/libedr_core$(LIB_EXT)"
 
 build-agent-go: build-agent-c
