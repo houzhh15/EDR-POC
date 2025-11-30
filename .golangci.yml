@@ -1,0 +1,73 @@
+# ============================================================
+# EDR Platform - Go Linter 配置
+# ============================================================
+# golangci-lint 配置文件
+# 使用方式: golangci-lint run
+# ============================================================
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    # 基础检查
+    - errcheck      # 检查未处理的错误
+    - gosimple      # 简化代码建议
+    - govet         # go vet 检查
+    - ineffassign   # 检测无效赋值
+    - staticcheck   # 静态分析
+    - unused        # 未使用代码检测
+
+    # 代码质量
+    - misspell      # 拼写检查
+    - gocyclo       # 圈复杂度检查
+    - gosec         # 安全检查
+
+    # 代码风格
+    - gofmt         # 格式化检查
+    - goimports     # import 格式化
+
+    # 额外检查
+    - revive        # 代码风格
+    - bodyclose     # HTTP body 关闭检查
+    - noctx         # context 传递检查
+    - exportloopref # 循环变量导出检查
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+
+  gosec:
+    excludes:
+      - G104  # 审计未处理的错误
+
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: error-return
+      - name: error-strings
+      - name: exported
+      - name: increment-decrement
+      - name: indent-error-flow
+      - name: range
+      - name: receiver-naming
+      - name: var-naming
+
+  goimports:
+    local-prefixes: github.com/edr-project/edr-platform
+
+issues:
+  exclude-rules:
+    # 测试文件排除部分检查
+    - path: _test\.go
+      linters:
+        - gosec
+        - errcheck
+
+    # 主函数排除未使用检查
+    - path: cmd/.*/main\.go
+      linters:
+        - unused

@@ -1,0 +1,58 @@
+---
+# ============================================================
+# EDR Platform - C 代码格式化配置
+# ============================================================
+# 基于 Google 风格，调整缩进为 4 空格
+# 使用方式: clang-format -i <file>
+# ============================================================
+
+Language: C
+BasedOnStyle: Google
+
+# 缩进设置
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# 行长度限制
+ColumnLimit: 100
+
+# 大括号风格
+BreakBeforeBraces: Attach
+
+# 短语句设置
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortBlocksOnASingleLine: Never
+
+# Case 标签缩进
+IndentCaseLabels: true
+
+# 指针和引用对齐
+PointerAlignment: Right
+
+# 空格设置
+SpaceAfterCStyleCast: true
+SpacesBeforeTrailingComments: 2
+
+# 对齐设置
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignTrailingComments: true
+
+# Include 排序
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  # 系统头文件
+  - Regex: '^<.*\.h>'
+    Priority: 1
+  # 项目头文件
+  - Regex: '^".*\.h"'
+    Priority: 2
+
+# 其他设置
+DerivePointerAlignment: false
+ReflowComments: true
+---

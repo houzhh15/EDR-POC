@@ -1,0 +1,199 @@
+# ============================================================
+# EDR Platform - Docker Compose 开发环境
+# ============================================================
+# 使用方式:
+#   启动: docker compose up -d
+#   停止: docker compose down
+#   重置: docker compose down -v
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ============================================================
+  # 消息队列 - Redpanda (Kafka 协议兼容，无需 JVM)
+  # ============================================================
+  kafka:
+    image: redpandadata/redpanda:v23.3.5
+    container_name: edr-kafka
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://kafka:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://kafka:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr kafka:33145
+      - --advertise-rpc-addr kafka:33145
+      - --smp 1
+      - --memory 1G
+      - --mode dev-container
+      - --default-log-level=warn
+    ports:
+      - "9092:19092"
+    volumes:
+      - kafka_data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - edr-network
+
+  # ============================================================
+  # 事件存储 - OpenSearch
+  # ============================================================
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: edr-opensearch
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD:-Admin@123}
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE 'green|yellow'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - edr-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ============================================================
+  # 配置存储 - PostgreSQL
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: edr-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-edr}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-edr_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-edr}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edr}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - edr-network
+
+  # ============================================================
+  # 缓存 - Redis
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: edr-redis
+    ports:
+      - "16379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - edr-network
+
+  # ============================================================
+  # OLAP 分析 - ClickHouse
+  # ============================================================
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.11
+    container_name: edr-clickhouse
+    ports:
+      - "8123:8123"    # HTTP 接口
+      - "9000:9000"    # Native 接口
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - edr-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ============================================================
+  # 对象存储 - MinIO
+  # ============================================================
+  minio:
+    image: minio/minio:latest
+    container_name: edr-minio
+    ports:
+      - "9001:9000"    # API 端口
+      - "9002:9001"    # Console 端口
+    environment:
+      - MINIO_ROOT_USER=${MINIO_USER:-minio}
+      - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD:-minio_dev_password}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - edr-network
+
+  # ============================================================
+  # 链路追踪 - Jaeger
+  # ============================================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: edr-jaeger
+    ports:
+      - "16686:16686"  # UI 端口
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - edr-network
+
+# ============================================================
+# 持久化数据卷
+# ============================================================
+volumes:
+  kafka_data:
+    driver: local
+  opensearch_data:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  clickhouse_data:
+    driver: local
+  minio_data:
+    driver: local
+
+# ============================================================
+# 网络
+# ============================================================
+networks:
+  edr-network:
+    driver: bridge

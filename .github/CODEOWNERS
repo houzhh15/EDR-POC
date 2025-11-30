@@ -1,0 +1,39 @@
+# ============================================================
+# EDR Platform - Code Owners
+# ============================================================
+# 定义各模块的代码所有者，用于 PR 自动分配审查者
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# ============================================================
+
+# 默认所有者
+* @edr-team
+
+# Agent 模块
+/agent/ @edr-team/agent
+
+# Agent C 核心库
+/agent/core-c/ @edr-team/agent @edr-team/core
+
+# Agent Go 主程序
+/agent/main-go/ @edr-team/agent
+
+# Cloud 服务
+/cloud/ @edr-team/cloud
+
+# Console 前端
+/console/ @edr-team/frontend
+
+# Proto 定义
+/proto/ @edr-team/core
+
+# 部署配置
+/deploy/ @edr-team/devops
+
+# CI/CD 配置
+/.github/ @edr-team/devops
+
+# 脚本
+/scripts/ @edr-team/devops
+
+# 文档
+/docs/ @edr-team

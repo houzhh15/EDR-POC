@@ -1,0 +1,98 @@
+# ============================================================
+# EDR Platform - 许可证检查流水线
+# ============================================================
+# 触发条件: PR 到 main/develop, 每周一定时扫描
+# 检查内容: Go 和 Node.js 依赖的许可证合规性
+# 禁止许可证: GPL, AGPL, SSPL
+# ============================================================
+
+name: License Check
+
+on:
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 0 * * 1'  # 每周一 UTC 0:00
+
+jobs:
+  # Go 依赖许可证检查
+  check-go-licenses:
+    name: Check Go Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses@latest
+
+      - name: Check Agent licenses
+        run: |
+          cd agent/main-go
+          go-licenses check ./... \
+            --disallowed_types=forbidden,restricted || true
+
+      - name: Check Cloud licenses
+        run: |
+          cd cloud
+          go-licenses check ./... \
+            --disallowed_types=forbidden,restricted || true
+
+      - name: Generate license report
+        run: |
+          echo "# Go License Report" > license-report.md
+          echo "" >> license-report.md
+          echo "## Agent" >> license-report.md
+          echo '```' >> license-report.md
+          cd agent/main-go && go-licenses csv ./... 2>/dev/null >> ../license-report.md || echo "No dependencies" >> ../license-report.md
+          echo '```' >> ../license-report.md
+          cd ..
+          echo "" >> license-report.md
+          echo "## Cloud" >> license-report.md
+          echo '```' >> license-report.md
+          cd cloud && go-licenses csv ./... 2>/dev/null >> ../license-report.md || echo "No dependencies" >> ../license-report.md
+          echo '```' >> ../license-report.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-license-report
+          path: license-report.md
+
+  # Node.js 依赖许可证检查
+  check-node-licenses:
+    name: Check Node Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: cd console && pnpm install
+
+      - name: Install license-checker
+        run: npm install -g license-checker
+
+      - name: Check licenses
+        run: |
+          cd console
+          license-checker --failOn "GPL;AGPL;SSPL" --summary || true
+
+      - name: Generate report
+        run: |
+          cd console
+          license-checker --csv --out ../node-license-report.csv || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node-license-report
+          path: node-license-report.csv

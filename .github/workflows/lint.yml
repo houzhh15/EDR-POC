@@ -1,0 +1,87 @@
+# ============================================================
+# EDR Platform - 代码检查流水线
+# ============================================================
+# 触发条件: PR 到 main/develop
+# 检查内容: Go Lint, TypeScript Lint, C Format, Commit Message
+# ============================================================
+
+name: Lint
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # Go 代码检查
+  lint-go:
+    name: Lint Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: golangci-lint (Agent)
+        uses: golangci/golangci-lint-action@v3
+        with:
+          working-directory: agent/main-go
+          version: v1.55
+
+      - name: golangci-lint (Cloud)
+        uses: golangci/golangci-lint-action@v3
+        with:
+          working-directory: cloud
+          version: v1.55
+
+  # TypeScript 代码检查
+  lint-ts:
+    name: Lint TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: cd console && pnpm install
+
+      - name: ESLint
+        run: cd console && pnpm run lint
+
+      - name: Prettier Check
+        run: cd console && pnpm exec prettier --check src
+
+  # C 代码格式检查
+  lint-c:
+    name: Lint C
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+
+      - name: Check format
+        run: |
+          find agent/core-c/src agent/core-c/include -name "*.c" -o -name "*.h" | \
+            xargs clang-format --dry-run --Werror
+
+  # Commit Message 检查
+  commit-lint:
+    name: Commit Message
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: wagoid/commitlint-github-action@v5

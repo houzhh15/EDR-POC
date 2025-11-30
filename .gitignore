@@ -1,0 +1,137 @@
+# ============================================================
+# EDR Platform .gitignore
+# ============================================================
+
+# ===================
+# 构建产物
+# ===================
+build/
+dist/
+bin/
+out/
+
+# ===================
+# C/C++ 编译产物
+# ===================
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile.cmake
+compile_commands.json
+
+# ===================
+# Go
+# ===================
+*.exe~
+*.test
+*.prof
+vendor/
+go.work.sum
+
+# ===================
+# Node.js / 前端
+# ===================
+node_modules/
+.vite/
+.pnpm-store/
+*.tsbuildinfo
+.eslintcache
+.cache/
+
+# ===================
+# IDE / 编辑器
+# ===================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+
+# ===================
+# 环境配置
+# ===================
+.env
+.env.local
+.env.*.local
+*.local
+
+# ===================
+# 日志文件
+# ===================
+*.log
+logs/
+*.log.*
+
+# ===================
+# 操作系统
+# ===================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ===================
+# Python (脚本)
+# ===================
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+venv/
+ENV/
+
+# ===================
+# 测试覆盖率
+# ===================
+coverage/
+*.cover
+*.coverage
+htmlcov/
+.nyc_output/
+
+# ===================
+# 临时文件
+# ===================
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ===================
+# 数据卷 (Docker)
+# ===================
+data/
+
+# ===================
+# 证书和密钥 (安全)
+# ===================
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+!deploy/docker/certs/.gitkeep
+
+# ===================
+# 其他
+# ===================
+*.bak
+*.backup
+*.orig
+.terraform/
