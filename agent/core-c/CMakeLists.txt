@@ -44,12 +44,30 @@ file(GLOB_RECURSE COLLECTOR_SOURCES "src/collector/${PLATFORM_DIR}/*.c")
 file(GLOB_RECURSE DETECTOR_SOURCES "src/detector/*.c")
 file(GLOB_RECURSE RESPONSE_SOURCES "src/response/*.c")
 
+# PAL 平台抽象层源文件 (条件编译)
+if(WIN32)
+    set(PAL_SOURCES "src/pal/pal_windows.c")
+elseif(APPLE)
+    set(PAL_SOURCES "src/pal/pal_macos.c")
+else()
+    set(PAL_SOURCES "src/pal/pal_linux.c")
+endif()
+
+# 事件队列源文件
+file(GLOB QUEUE_SOURCES "src/queue/*.c")
+
+# 插件架构源文件
+file(GLOB PLUGIN_SOURCES "src/plugin/*.c")
+
 # 合并所有源文件
 set(ALL_SOURCES
     ${COMMON_SOURCES}
     ${COLLECTOR_SOURCES}
     ${DETECTOR_SOURCES}
     ${RESPONSE_SOURCES}
+    ${PAL_SOURCES}
+    ${QUEUE_SOURCES}
+    ${PLUGIN_SOURCES}
 )
 
 # 输出源文件信息
@@ -57,12 +75,18 @@ message(STATUS "Common sources: ${COMMON_SOURCES}")
 message(STATUS "Collector sources (${PLATFORM_DIR}): ${COLLECTOR_SOURCES}")
 message(STATUS "Detector sources: ${DETECTOR_SOURCES}")
 message(STATUS "Response sources: ${RESPONSE_SOURCES}")
+message(STATUS "PAL sources: ${PAL_SOURCES}")
+message(STATUS "Queue sources: ${QUEUE_SOURCES}")
+message(STATUS "Plugin sources: ${PLUGIN_SOURCES}")
+
 
 # ============================================================
 # 头文件路径
 # ============================================================
 include_directories(include)
 include_directories(src)
+include_directories(src/queue)
+include_directories(src/plugin)
 
 # ============================================================
 # 共享库目标
@@ -85,6 +109,11 @@ endif()
 if(PLATFORM_LIBS)
     target_link_libraries(edr_core ${PLATFORM_LIBS})
 endif()
+
+# pthread 库支持
+find_package(Threads REQUIRED)
+target_link_libraries(edr_core Threads::Threads)
+
 
 # ============================================================
 # 版本信息

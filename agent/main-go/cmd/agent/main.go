@@ -8,12 +8,19 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"go.uber.org/zap"
+
+	"github.com/edr-project/edr-platform/agent/internal/cgo"
+	"github.com/edr-project/edr-platform/agent/internal/comm"
+	"github.com/edr-project/edr-platform/agent/internal/config"
+	"github.com/edr-project/edr-platform/agent/internal/log"
 )
 
 // 版本信息 (由编译时注入)
@@ -23,20 +30,57 @@ var (
 	BuildTime = "unknown"
 )
 
+// 命令行参数
+var (
+	configPath = flag.String("config", "/etc/edr/agent.yaml", "配置文件路径")
+	showVer    = flag.Bool("version", false, "显示版本信息")
+)
+
 func main() {
-	// 初始化日志
-	logger, err := zap.NewProduction()
+	flag.Parse()
+
+	// 显示版本
+	if *showVer {
+		fmt.Printf("EDR Agent %s (commit: %s, built: %s)\n", Version, GitCommit, BuildTime)
+		fmt.Printf("Core Library: %s\n", cgo.Version())
+		os.Exit(0)
+	}
+
+	// 加载配置
+	cfg, err := config.LoadAndValidate(*configPath)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 初始化日志
+	if err := log.Init(log.LogConfig{
+		Level:      cfg.Log.Level,
+		Output:     cfg.Log.Output,
+		FilePath:   cfg.Log.FilePath,
+		MaxSizeMB:  cfg.Log.MaxSizeMB,
+		MaxBackups: cfg.Log.MaxBackups,
+	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
+
+	logger := log.Global()
 	defer logger.Sync()
 
 	logger.Info("EDR Agent starting",
 		zap.String("version", Version),
 		zap.String("commit", GitCommit),
-		zap.String("build_time", BuildTime),
+		zap.String("core_version", cgo.Version()),
 	)
+
+	// 初始化 C 核心库
+	if err := cgo.Init(); err != nil {
+		logger.Fatal("Failed to initialize core library", zap.Error(err))
+	}
+	defer cgo.Cleanup()
+
+	logger.Info("Core library initialized")
 
 	// 创建上下文，监听退出信号
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,22 +96,53 @@ func main() {
 		cancel()
 	}()
 
-	// TODO: 初始化配置
-	// cfg, err := config.Load()
+	// 创建事件通道
+	eventChan := make(chan cgo.Event, cfg.Collector.BufferSize)
 
-	// TODO: 初始化 C 核心库
-	// if err := cgo.Init(); err != nil {
-	//     logger.Fatal("Failed to initialize core library", zap.Error(err))
-	// }
+	// 启动采集器
+	if err := cgo.StartCollector(eventChan); err != nil {
+		logger.Fatal("Failed to start collector", zap.Error(err))
+	}
+	logger.Info("Collector started")
 
-	// TODO: 启动采集器
-	// collector.Start(ctx)
+	// 创建 gRPC 连接
+	conn := comm.NewConnection(comm.ConnConfig{
+		Endpoint:   cfg.Cloud.Endpoint,
+		TLSEnabled: cfg.Cloud.TLS.Enabled,
+		CACertPath: cfg.Cloud.TLS.CACert,
+		Timeout:    10 * time.Second,
+	})
 
-	// TODO: 启动 gRPC 客户端连接云端
-	// client.Connect(ctx, cfg.CloudEndpoint)
+	// 后台重连
+	go func() {
+		if err := conn.ConnectWithRetry(ctx); err != nil {
+			if ctx.Err() == nil {
+				logger.Error("Failed to connect to cloud", zap.Error(err))
+			}
+		} else {
+			logger.Info("Connected to cloud", zap.String("endpoint", cfg.Cloud.Endpoint))
+		}
+	}()
+
+	// 创建事件客户端并启动批量发送
+	eventClient := comm.NewEventClient(conn, 100, 5*time.Second)
+	go eventClient.StartBatchSender(ctx, eventChan)
 
 	// 等待退出
 	<-ctx.Done()
+
+	// 优雅关闭
+	logger.Info("Shutting down...")
+
+	// 停止采集器
+	if err := cgo.StopCollector(); err != nil {
+		logger.Error("Failed to stop collector", zap.Error(err))
+	}
+
+	// 关闭连接
+	if err := conn.Close(); err != nil {
+		logger.Error("Failed to close connection", zap.Error(err))
+	}
 
 	logger.Info("EDR Agent stopped")
 }

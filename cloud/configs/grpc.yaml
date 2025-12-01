@@ -1,0 +1,56 @@
+# gRPC 服务器配置
+grpc:
+  listen_addr: ":9090"
+  metrics_addr: ":9091"
+
+# TLS/mTLS 配置
+# 开发环境使用项目内证书，生产环境应配置 /etc/edr/certs/
+tls:
+  enabled: true
+  cert_file: "../deploy/certs/server.crt"
+  key_file: "../deploy/certs/server.key"
+  ca_file: "../deploy/certs/ca.crt"
+
+# 限制参数
+limits:
+  max_recv_msg_size: 4194304    # 4MB
+  max_send_msg_size: 4194304    # 4MB
+  max_concurrent_streams: 1000
+
+# Keepalive 参数
+keepalive:
+  time: 300           # 5 分钟 (秒)
+  timeout: 20         # 20 秒
+  max_connection_idle: 900      # 15 分钟
+  max_connection_age: 1800      # 30 分钟
+
+# Kafka/Redpanda 配置
+kafka:
+  brokers:
+    - "localhost:19092"
+  topic: "edr-events"
+  batch_size: 100
+  batch_timeout: 5    # 5 秒
+
+# Redis 配置
+redis:
+  addr: "localhost:16379"
+  password: ""
+  db: 0
+  pool_size: 100
+
+# Agent 心跳配置
+heartbeat:
+  interval: 30        # 建议心跳间隔 (秒)
+  timeout: 90         # 心跳超时 TTL (秒)
+
+# JWT 配置
+jwt:
+  secret: "your-super-secret-jwt-key-change-in-production"
+  issuer: "edr-platform"
+  expires_in: 86400   # 24 小时 (秒)
+
+# 日志配置
+logging:
+  level: "info"       # debug, info, warn, error
+  format: "json"      # json, console

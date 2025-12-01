@@ -1,0 +1,26 @@
+# EDR Agent 配置文件
+# 环境变量覆盖示例: EDR_CLOUD_ENDPOINT=myserver:8080
+
+agent:
+  id: ""                          # 留空则自动生成
+  name: "edr-agent"               # Agent 名称
+
+cloud:
+  endpoint: "localhost:8080"      # 云端服务器地址
+  tls:
+    enabled: false                # 是否启用 TLS
+    ca_cert: ""                   # CA 证书路径
+
+collector:
+  enabled_types:                  # 启用的采集类型
+    - process                     # 进程事件
+    - file                        # 文件事件
+    - network                     # 网络事件
+  buffer_size: 10000              # 事件缓冲区大小
+
+log:
+  level: "info"                   # 日志级别: debug, info, warn, error
+  output: "both"                  # 输出方式: console, file, both
+  file_path: "/var/log/edr/agent.log"
+  max_size_mb: 100                # 单文件最大大小(MB)
+  max_backups: 5                  # 最大保留文件数

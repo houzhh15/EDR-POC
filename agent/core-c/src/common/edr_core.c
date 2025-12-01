@@ -7,6 +7,9 @@
  */
 
 #include "edr_core.h"
+#include "pal.h"
+#include "ring_buffer.h"
+#include "module_manager.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +20,10 @@
 
 static bool g_initialized = false;
 static bool g_collector_running = false;
+
+/* 全局事件队列 */
+static edr_ring_buffer_t* g_event_queue = NULL;
+#define EDR_DEFAULT_QUEUE_CAPACITY 16384  /* 必须是 2 的幂 */
 
 /* ============================================================
  * 版本信息
@@ -69,12 +76,28 @@ edr_error_t edr_core_init(void) {
         return EDR_ERR_ALREADY_INITIALIZED;
     }
 
-    /* TODO: 初始化各子模块
-     * - 初始化日志系统
-     * - 初始化采集器
-     * - 初始化检测引擎
-     * - 初始化响应执行器
-     */
+    edr_error_t err;
+
+    /* 1. 初始化平台抽象层 */
+    err = pal_init();
+    if (err != EDR_OK) {
+        return err;
+    }
+
+    /* 2. 初始化模块管理器 */
+    err = edr_module_manager_init();
+    if (err != EDR_OK) {
+        pal_cleanup();
+        return err;
+    }
+
+    /* 3. 创建全局事件队列 */
+    g_event_queue = ring_buffer_create(EDR_DEFAULT_QUEUE_CAPACITY);
+    if (g_event_queue == NULL) {
+        edr_module_manager_cleanup();
+        pal_cleanup();
+        return EDR_ERR_NO_MEMORY;
+    }
 
     g_initialized = true;
     return EDR_OK;
@@ -90,11 +113,22 @@ void edr_core_cleanup(void) {
         edr_collector_stop();
     }
 
-    /* TODO: 清理各子模块
-     * - 清理检测引擎
-     * - 清理响应执行器
-     * - 清理日志系统
-     */
+    /* 按逆序清理 */
+
+    /* 1. 停止所有模块 */
+    edr_module_stop_all();
+
+    /* 2. 销毁事件队列 */
+    if (g_event_queue != NULL) {
+        ring_buffer_destroy(g_event_queue);
+        g_event_queue = NULL;
+    }
+
+    /* 3. 清理模块管理器 */
+    edr_module_manager_cleanup();
+
+    /* 4. 清理平台层 */
+    pal_cleanup();
 
     g_initialized = false;
 }
@@ -213,4 +247,12 @@ edr_error_t edr_response_quarantine_file(const char* file_path, const char* quar
     /* TODO: 实现文件隔离 */
 
     return EDR_ERR_NOT_SUPPORTED;
+}
+
+/* ============================================================
+ * 事件队列访问接口
+ * ============================================================ */
+
+void* edr_core_get_event_queue(void) {
+    return (void*)g_event_queue;
 }

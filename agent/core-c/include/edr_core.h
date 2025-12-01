@@ -82,6 +82,15 @@ void edr_core_cleanup(void);
  */
 bool edr_core_is_initialized(void);
 
+/**
+ * @brief 获取全局事件队列指针
+ * 
+ * 此函数供 CGO 层获取事件队列，用于事件消费。
+ * 
+ * @return 事件队列指针 (edr_ring_buffer_t*)，未初始化时返回 NULL
+ */
+void* edr_core_get_event_queue(void);
+
 /* ============================================================
  * 采集器接口 (Collector)
  * ============================================================ */

@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package edr.v1;
+
+option go_package = "github.com/edr-project/edr-platform/proto/edr/v1;edrv1";
+
+import "google/protobuf/timestamp.proto";
+
+// ========== Heartbeat Messages ==========
+
+message HeartbeatRequest {
+  string agent_id = 1;                          // Agent 唯一标识
+  string hostname = 2;                          // 主机名
+  string ip_address = 3;                        // IP 地址
+  string agent_version = 4;                     // Agent 版本号
+  string os_family = 5;                         // 操作系统类型 (windows/linux/darwin)
+  int64 uptime_seconds = 6;                     // Agent 运行时长
+  AgentStatus status = 7;                       // Agent 状态
+  google.protobuf.Timestamp client_time = 8;    // 客户端时间戳
+  string current_policy_version = 9;            // 当前策略版本
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+  google.protobuf.Timestamp server_time = 2;    // 服务端时间戳
+  int32 heartbeat_interval = 3;                 // 建议的心跳间隔（秒）
+  bool policy_update_available = 4;             // 是否有策略更新
+  string latest_policy_version = 5;             // 最新策略版本
+}
+
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  AGENT_STATUS_RUNNING = 1;                     // 正常运行
+  AGENT_STATUS_DEGRADED = 2;                    // 降级运行
+  AGENT_STATUS_ERROR = 3;                       // 错误状态
+}
+
+// ========== Event Messages ==========
+
+message EventBatch {
+  string agent_id = 1;                          // Agent 标识
+  string batch_id = 2;                          // 批次ID（用于去重）
+  int32 sequence_number = 3;                    // 序列号（用于顺序校验）
+  repeated SecurityEvent events = 4;            // 事件列表
+  google.protobuf.Timestamp batch_time = 5;     // 批次时间
+}
+
+message SecurityEvent {
+  string event_id = 1;                          // 事件唯一ID (UUID)
+  string event_type = 2;                        // 事件类型 (process/file/network/registry)
+  google.protobuf.Timestamp timestamp = 3;      // 事件发生时间
+  int32 severity = 4;                           // 严重程度 (1-5)
+  map<string, string> ecs_fields = 5;           // ECS 标准字段
+  bytes raw_data = 6;                           // 原始数据（可选）
+}
+
+message ReportResponse {
+  bool success = 1;
+  int32 events_received = 2;                    // 接收的事件数
+  int32 events_accepted = 3;                    // 接受的事件数（通过校验）
+  repeated string rejected_event_ids = 4;       // 被拒绝的事件ID
+  string error_message = 5;                     // 错误信息
+}
+
+// ========== Policy Messages ==========
+
+message PolicyRequest {
+  string agent_id = 1;
+  string current_version = 2;                   // 当前策略版本
+  repeated string policy_types = 3;             // 请求的策略类型
+}
+
+message PolicyUpdate {
+  string policy_id = 1;
+  string policy_type = 2;                       // detection/response/collection
+  string version = 3;
+  bytes content = 4;                            // 策略内容（压缩后）
+  string content_type = 5;                      // application/x-yaml, application/json
+  string checksum = 6;                          // SHA256 校验和
+  PolicyAction action = 7;                      // 操作类型
+  bool is_complete = 8;                         // 是否传输完成
+  int32 chunk_index = 9;                        // 分块索引
+  int32 total_chunks = 10;                      // 总分块数
+}
+
+enum PolicyAction {
+  POLICY_ACTION_UNSPECIFIED = 0;
+  POLICY_ACTION_UPDATE = 1;                     // 更新
+  POLICY_ACTION_DELETE = 2;                     // 删除
+  POLICY_ACTION_FULL_SYNC = 3;                  // 全量同步
+}
+
+// ========== Command Messages ==========
+
+message Command {
+  string command_id = 1;                        // 命令唯一ID
+  string command_type = 2;                      // 命令类型
+  map<string, string> parameters = 3;           // 命令参数
+  int32 timeout_seconds = 4;                    // 超时时间
+  string issued_by = 5;                         // 发起者（审计用）
+  google.protobuf.Timestamp issued_at = 6;      // 发起时间
+}
+
+message CommandResult {
+  string command_id = 1;
+  CommandStatus status = 2;
+  string output = 3;                            // 执行输出
+  string error_message = 4;                     // 错误信息
+  google.protobuf.Timestamp completed_at = 5;   // 完成时间
+}
+
+enum CommandStatus {
+  COMMAND_STATUS_UNSPECIFIED = 0;
+  COMMAND_STATUS_PENDING = 1;                   // 待执行
+  COMMAND_STATUS_RUNNING = 2;                   // 执行中
+  COMMAND_STATUS_SUCCESS = 3;                   // 成功
+  COMMAND_STATUS_FAILED = 4;                    // 失败
+  COMMAND_STATUS_TIMEOUT = 5;                   // 超时
+}

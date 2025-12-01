@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package edr.v1;
+
+option go_package = "github.com/edr-project/edr-platform/proto/edr/v1;edrv1";
+
+import "edr/v1/common.proto";
+
+// AgentService 定义 Agent 与云端的通信接口
+service AgentService {
+  // Heartbeat Agent 心跳上报 (一元 RPC)
+  // 用途: 维持连接、上报状态、获取配置版本
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  
+  // ReportEvents Agent 批量上报安全事件 (客户端流)
+  // 用途: 流式上传事件数据，支持大批量传输
+  rpc ReportEvents(stream EventBatch) returns (ReportResponse);
+  
+  // SyncPolicy 策略同步 (服务端流)
+  // 用途: Agent 拉取最新检测策略
+  rpc SyncPolicy(PolicyRequest) returns (stream PolicyUpdate);
+  
+  // ExecuteCommand 命令执行通道 (双向流)
+  // 用途: 云端命令下发与 Agent 结果回传
+  rpc ExecuteCommand(stream CommandResult) returns (stream Command);
+}
