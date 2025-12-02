@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <evntcons.h>
 
 /**
  * @brief 消费线程入口函数

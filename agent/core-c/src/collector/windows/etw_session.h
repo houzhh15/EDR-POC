@@ -67,7 +67,7 @@ typedef struct {
     PEVENT_TRACE_PROPERTIES properties;
     
     /** Logfile配置结构 */
-    EVENT_TRACE_LOGFILE trace_logfile;
+    EVENT_TRACE_LOGFILEW trace_logfile;
     
     /** 事件回调函数指针 */
     event_callback_fn callback;
