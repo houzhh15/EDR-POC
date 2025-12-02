@@ -18,6 +18,9 @@
 
 #include "etw_process.h"
 #include "../../include/edr_errors.h"
+#include <windows.h>
+#include <evntrace.h>
+#include <evntcons.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,6 +166,7 @@ static int get_process_commandline(HANDLE process_handle, uint32_t pid, char* cm
     // 这里提供简化版本,实际可通过WMI或读取PEB实现
     // 由于复杂度较高,这里先填充占位符,实际项目中需要完整实现
     
+    (void)process_handle;  // 避免未使用警告
     snprintf(cmdline_buffer, buffer_size, "[CommandLine for PID %u]", pid);
     return EDR_SUCCESS;
 }

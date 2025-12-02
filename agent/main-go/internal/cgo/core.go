@@ -131,5 +131,6 @@ func ErrorString(err error) string {
 	default:
 		cErr = C.EDR_ERR_UNKNOWN
 	}
-	return C.GoString(C.edr_error_string(cErr))
+	errInt := int(cErr)
+	return C.GoString(C.edr_error_string(C.int(errInt)))
 }
