@@ -75,6 +75,7 @@ void test_event_buffer_push_pop_single() {
     
     // Push事件
     int result = event_buffer_push(buffer, &event);
+    (void)result; // 用于断言检查
     assert(result == EDR_SUCCESS);
     assert(buffer->total_pushed == 1);
     
@@ -197,6 +198,7 @@ void test_event_buffer_empty() {
     // 批量pop
     edr_process_event_t events[10];
     int count = event_buffer_pop_batch(buffer, events, 10);
+    (void)count; // 用于断言检查
     assert(count == 0);
     (void)count; // 避免未使用警告
     

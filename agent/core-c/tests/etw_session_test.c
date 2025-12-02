@@ -63,6 +63,7 @@ void test_etw_session_start_stop() {
     
     // 启动Session(需要管理员权限)
     int result = etw_session_start(session, test_event_callback, NULL);
+    (void)result; // 用于错误检查
     
     if (result == EDR_ERROR_ETW_ACCESS_DENIED) {
         printf("  [SKIP] Admin privileges required\n");
@@ -104,6 +105,7 @@ void test_etw_session_error_handling() {
     assert(session != NULL);
     
     int result = etw_session_start(session, NULL, NULL);
+    (void)result; // 用于断言检查
     assert(result == EDR_ERROR_INVALID_PARAM);
     
     etw_session_destroy(session);
@@ -139,6 +141,7 @@ void test_etw_session_multiple_cycles() {
     
     for (int i = 0; i < 3; i++) {
         int result = etw_session_start(session, test_event_callback, NULL);
+        (void)result; // 用于错误检查
         
         if (result == EDR_ERROR_ETW_ACCESS_DENIED) {
             printf("  [SKIP] Admin privileges required\n");
