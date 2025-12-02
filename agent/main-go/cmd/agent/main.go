@@ -17,10 +17,10 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/edr-project/edr-platform/agent/internal/cgo"
-	"github.com/edr-project/edr-platform/agent/internal/comm"
-	"github.com/edr-project/edr-platform/agent/internal/config"
-	"github.com/edr-project/edr-platform/agent/internal/log"
+	"github.com/houzhh15/EDR-POC/agent/main-go/internal/cgo"
+	"github.com/houzhh15/EDR-POC/agent/main-go/internal/comm"
+	"github.com/houzhh15/EDR-POC/agent/main-go/internal/config"
+	"github.com/houzhh15/EDR-POC/agent/main-go/internal/log"
 )
 
 // 版本信息 (由编译时注入)

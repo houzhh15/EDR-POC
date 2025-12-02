@@ -10,9 +10,15 @@
 #include "pal.h"
 #include "ring_buffer.h"
 #include "module_manager.h"
+#include "edr_errors.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include "../collector/windows/etw_session.h"
+#include "../collector/windows/etw_process.h"
+#endif
 
 /* ============================================================
  * 内部状态
@@ -304,6 +310,11 @@ int edr_start_process_collector(void** out_handle) {
     *out_handle = session;
     
     return EDR_SUCCESS;
+#else
+    // 非Windows平台暂不支持
+    (void)out_handle;
+    return EDR_ERROR_NOT_SUPPORTED;
+#endif
 }
 
 /**
@@ -333,6 +344,11 @@ int edr_stop_process_collector(void* handle) {
     free(session);
     
     return EDR_SUCCESS;
+#else
+    // 非Windows平台暂不支持
+    (void)handle;
+    return EDR_ERROR_NOT_SUPPORTED;
+#endif
 }
 
 /**
@@ -369,6 +385,12 @@ int edr_poll_process_events(
     *out_count = count;
     
     return EDR_SUCCESS;
+#else
+    // 非Windows平台暂不支持
+    (void)handle;
+    (void)out_events;
+    (void)max_events;
+    (void)out_count;
+    return EDR_ERROR_NOT_SUPPORTED;
+#endif
 }
-
-#endif /* _WIN32 */

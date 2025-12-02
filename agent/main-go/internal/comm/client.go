@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/edr-project/edr-platform/agent/internal/cgo"
+	"github.com/houzhh15/EDR-POC/agent/main-go/internal/cgo"
 )
 
 // EventClient 事件上报客户端

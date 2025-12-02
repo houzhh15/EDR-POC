@@ -13,8 +13,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/edr-project/edr-platform/agent/internal/log"
-	pb "github.com/edr-project/edr-platform/agent/pkg/proto/edr/v1"
+	"github.com/houzhh15/EDR-POC/agent/main-go/internal/log"
+	pb "github.com/houzhh15/EDR-POC/agent/main-go/pkg/proto/edr/v1"
 )
 
 // HeartbeatConfig 心跳配置

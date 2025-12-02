@@ -33,8 +33,8 @@
 #else
 // macOS/Linux使用C11 stdatomic
 #include <stdatomic.h>
-#define ATOMIC_INC64(ptr) (atomic_fetch_add((_Atomic uint64_t*)(ptr), 1) + 1)
-#define ATOMIC_ADD64(ptr, val) atomic_fetch_add((_Atomic uint64_t*)(ptr), (val))
+#define ATOMIC_INC64(ptr) (void)atomic_fetch_add((_Atomic uint64_t*)(ptr), 1)
+#define ATOMIC_ADD64(ptr, val) (void)atomic_fetch_add((_Atomic uint64_t*)(ptr), (val))
 #define ATOMIC_STORE32(ptr, val) atomic_store((_Atomic uint32_t*)(ptr), (val))
 #define ATOMIC_STORE32_CAS(ptr, old, val) atomic_compare_exchange_strong((_Atomic uint32_t*)(ptr), &(old), (val))
 #define ATOMIC_CAS64(ptr, expected, desired) atomic_compare_exchange_strong((_Atomic uint64_t*)(ptr), &(expected), (desired))
