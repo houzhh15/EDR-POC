@@ -61,6 +61,7 @@ void test_process_handle_lru_cache() {
     
     // 第一次获取(应该打开新句柄)
     HANDLE handle1 = etw_get_process_handle(consumer, current_pid);
+    (void)handle1; // 用于缓存测试
     assert(handle1 != NULL);
     assert(consumer->cache_used == 1);
     
