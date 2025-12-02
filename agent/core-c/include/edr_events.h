@@ -15,6 +15,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <stddef.h>  // for size_t
 
 // Windows MAX_PATH定义
 #ifndef MAX_PATH

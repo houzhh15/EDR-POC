@@ -182,6 +182,8 @@ int main(void) {
 
 #else
 
+#include <stdio.h>
+
 int main(void) {
     printf("ETW Session tests are Windows-only\n");
     return 0;

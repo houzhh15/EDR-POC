@@ -24,9 +24,20 @@
 
 #ifdef _WIN32
 #include <windows.h>
+// Windows原子操作宏
+#define ATOMIC_INC64(ptr) InterlockedIncrement64((volatile LONG64*)(ptr))
+#define ATOMIC_ADD64(ptr, val) InterlockedExchangeAdd64((volatile LONG64*)(ptr), (val))
+#define ATOMIC_STORE32(ptr, val) InterlockedExchange((volatile LONG*)(ptr), (val))
+#define ATOMIC_STORE32_CAS(ptr, old, val) InterlockedCompareExchange((volatile LONG*)(ptr), (val), (old))
+#define ATOMIC_CAS64(ptr, expected, desired) InterlockedCompareExchange64((volatile LONG64*)(ptr), (desired), (expected))
 #else
-// 非Windows平台使用C11 stdatomic(暂不支持)
-#error "Currently only Windows platform is supported"
+// macOS/Linux使用C11 stdatomic
+#include <stdatomic.h>
+#define ATOMIC_INC64(ptr) (atomic_fetch_add((_Atomic uint64_t*)(ptr), 1) + 1)
+#define ATOMIC_ADD64(ptr, val) atomic_fetch_add((_Atomic uint64_t*)(ptr), (val))
+#define ATOMIC_STORE32(ptr, val) atomic_store((_Atomic uint32_t*)(ptr), (val))
+#define ATOMIC_STORE32_CAS(ptr, old, val) atomic_compare_exchange_strong((_Atomic uint32_t*)(ptr), &(old), (val))
+#define ATOMIC_CAS64(ptr, expected, desired) atomic_compare_exchange_strong((_Atomic uint64_t*)(ptr), &(expected), (desired))
 #endif
 
 /**
@@ -75,7 +86,7 @@ int event_buffer_push(event_buffer_t* buffer, const edr_process_event_t* event) 
     // 满的条件: (write_pos + 1) % SIZE == read_pos
     if (next_write == buffer->read_pos) {
         // Buffer满,丢弃事件
-        InterlockedIncrement64((volatile LONG64*)&buffer->dropped_count);
+        ATOMIC_INC64(&buffer->dropped_count);
         return EDR_ERROR_BUFFER_FULL;
     }
     
@@ -83,25 +94,21 @@ int event_buffer_push(event_buffer_t* buffer, const edr_process_event_t* event) 
     memcpy(&buffer->events[current_write], event, sizeof(edr_process_event_t));
     
     // 原子更新写位置(确保事件完全写入后再更新索引)
-    InterlockedExchange((volatile LONG*)&buffer->write_pos, next_write);
+    ATOMIC_STORE32(&buffer->write_pos, next_write);
     
     // 原子递增总推送计数
-    InterlockedIncrement64((volatile LONG64*)&buffer->total_pushed);
+    ATOMIC_INC64(&buffer->total_pushed);
     
     // 更新峰值使用量
     uint32_t usage = event_buffer_get_usage(buffer);
     uint32_t current_peak = buffer->peak_usage;
     while (usage > current_peak) {
         // 尝试原子更新peak_usage
-        LONG old_peak = InterlockedCompareExchange(
-            (volatile LONG*)&buffer->peak_usage,
-            usage,
-            current_peak
-        );
-        if (old_peak == (LONG)current_peak) {
-            break; // 更新成功
+        uint32_t old_peak = current_peak;
+        if (ATOMIC_STORE32_CAS(&buffer->peak_usage, old_peak, usage)) {
+            break;  // 更新成功
         }
-        current_peak = buffer->peak_usage; // 重新读取
+        current_peak = buffer->peak_usage;  // 更新失败,重新读取
     }
     
     return EDR_SUCCESS;
@@ -131,10 +138,10 @@ int event_buffer_pop(event_buffer_t* buffer, edr_process_event_t* out_event) {
     uint32_t next_read = (current_read + 1) % EVENT_BUFFER_SIZE;
     
     // 原子更新读位置
-    InterlockedExchange((volatile LONG*)&buffer->read_pos, next_read);
+    ATOMIC_STORE32(&buffer->read_pos, next_read);
     
     // 原子递增总弹出计数
-    InterlockedIncrement64((volatile LONG64*)&buffer->total_popped);
+    ATOMIC_INC64(&buffer->total_popped);
     
     return 1; // 返回1表示成功弹出1个事件
 }
@@ -167,7 +174,7 @@ int event_buffer_pop_batch(
         
         // 更新读位置
         uint32_t next_read = (current_read + 1) % EVENT_BUFFER_SIZE;
-        InterlockedExchange((volatile LONG*)&buffer->read_pos, next_read);
+        ATOMIC_STORE32(&buffer->read_pos, next_read);
         
         // 递增计数
         count++;
@@ -175,7 +182,7 @@ int event_buffer_pop_batch(
     
     // 原子递增总弹出计数
     if (count > 0) {
-        InterlockedExchangeAdd64((volatile LONG64*)&buffer->total_popped, count);
+        ATOMIC_ADD64(&buffer->total_popped, count);
     }
     
     return count;
@@ -195,23 +202,17 @@ void event_buffer_get_stats(
         return;
     }
     
-    // 原子读取统计值(使用InterlockedXxx确保读取一致性)
+    // 原子读取统计值(直接读取即可,volatile保证可见性)
     if (out_total_pushed != NULL) {
-        *out_total_pushed = InterlockedCompareExchange64(
-            (volatile LONG64*)&buffer->total_pushed, 0, 0
-        );
+        *out_total_pushed = buffer->total_pushed;
     }
     
     if (out_total_popped != NULL) {
-        *out_total_popped = InterlockedCompareExchange64(
-            (volatile LONG64*)&buffer->total_popped, 0, 0
-        );
+        *out_total_popped = buffer->total_popped;
     }
     
     if (out_dropped != NULL) {
-        *out_dropped = InterlockedCompareExchange64(
-            (volatile LONG64*)&buffer->dropped_count, 0, 0
-        );
+        *out_dropped = buffer->dropped_count;
     }
     
     if (out_usage_percent != NULL) {

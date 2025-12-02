@@ -40,7 +40,12 @@ endif()
 # 源文件收集
 # ============================================================
 file(GLOB_RECURSE COMMON_SOURCES "src/common/*.c")
-file(GLOB_RECURSE COLLECTOR_SOURCES "src/collector/${PLATFORM_DIR}/*.c")
+
+# 采集模块源文件 (平台特定 + 通用)
+file(GLOB COLLECTOR_COMMON_SOURCES "src/collector/*.c")
+file(GLOB_RECURSE COLLECTOR_PLATFORM_SOURCES "src/collector/${PLATFORM_DIR}/*.c")
+set(COLLECTOR_SOURCES ${COLLECTOR_COMMON_SOURCES} ${COLLECTOR_PLATFORM_SOURCES})
+
 file(GLOB_RECURSE DETECTOR_SOURCES "src/detector/*.c")
 file(GLOB_RECURSE RESPONSE_SOURCES "src/response/*.c")
 

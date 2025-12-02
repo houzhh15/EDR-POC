@@ -65,8 +65,13 @@ void test_event_buffer_push_pop_single() {
     event.pid = 1234;
     event.ppid = 567;
     event.event_type = EDR_PROCESS_START;
+#ifdef _WIN32
     strcpy_s(event.process_name, sizeof(event.process_name), "test.exe");
     strcpy_s(event.executable_path, sizeof(event.executable_path), "C:\\test\\test.exe");
+#else
+    strncpy(event.process_name, "test.exe", sizeof(event.process_name) - 1);
+    strncpy(event.executable_path, "C:\\test\\test.exe", sizeof(event.executable_path) - 1);
+#endif
     
     // Push事件
     int result = event_buffer_push(buffer, &event);
@@ -78,6 +83,7 @@ void test_event_buffer_push_pop_single() {
     result = event_buffer_pop(buffer, &popped);
     assert(result == EDR_SUCCESS);
     assert(buffer->total_popped == 1);
+    (void)result; // 避免未使用警告
     
     // 验证数据完整性
     assert(popped.timestamp == event.timestamp);
@@ -116,6 +122,7 @@ void test_event_buffer_push_pop_batch() {
     for (int i = 0; i < batch_size; i++) {
         int result = event_buffer_push(buffer, &events[i]);
         assert(result == EDR_SUCCESS);
+        (void)result; // 避免未使用警告
     }
     
     assert(buffer->total_pushed == batch_size);
@@ -125,6 +132,7 @@ void test_event_buffer_push_pop_batch() {
     int popped_count = event_buffer_pop_batch(buffer, popped_events, batch_size);
     assert(popped_count == batch_size);
     assert(buffer->total_popped == batch_size);
+    (void)popped_count; // 避免未使用警告
     
     // 验证数据
     for (int i = 0; i < batch_size; i++) {
@@ -158,6 +166,7 @@ void test_event_buffer_full() {
             success_count++;
         }
     }
+    (void)success_count; // 避免未使用警告
     
     // 应该只能push 4095个(留一个空位区分满和空)
     assert(success_count == EVENT_BUFFER_SIZE - 1);
@@ -183,11 +192,13 @@ void test_event_buffer_empty() {
     // 从空buffer pop
     int result = event_buffer_pop(buffer, &event);
     assert(result == EDR_ERROR_BUFFER_EMPTY);
+    (void)result; // 避免未使用警告
     
     // 批量pop
     edr_process_event_t events[10];
     int count = event_buffer_pop_batch(buffer, events, 10);
     assert(count == 0);
+    (void)count; // 避免未使用警告
     
     event_buffer_destroy(buffer);
     

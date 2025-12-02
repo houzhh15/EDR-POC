@@ -229,6 +229,8 @@ int main(void) {
 
 #else
 
+#include <stdio.h>
+
 int main(void) {
     printf("ETW Process Consumer tests are Windows-only\n");
     return 0;

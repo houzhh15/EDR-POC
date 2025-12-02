@@ -39,35 +39,6 @@ const char* edr_core_version(void) {
 }
 
 /* ============================================================
- * 错误处理
- * ============================================================ */
-
-const char* edr_error_string(edr_error_t err) {
-    switch (err) {
-        case EDR_OK:
-            return "Success";
-        case EDR_ERR_UNKNOWN:
-            return "Unknown error";
-        case EDR_ERR_INVALID_PARAM:
-            return "Invalid parameter";
-        case EDR_ERR_NO_MEMORY:
-            return "Out of memory";
-        case EDR_ERR_NOT_INITIALIZED:
-            return "Not initialized";
-        case EDR_ERR_ALREADY_INITIALIZED:
-            return "Already initialized";
-        case EDR_ERR_PERMISSION:
-            return "Permission denied";
-        case EDR_ERR_NOT_SUPPORTED:
-            return "Not supported";
-        case EDR_ERR_TIMEOUT:
-            return "Timeout";
-        default:
-            return "Unknown error code";
-    }
-}
-
-/* ============================================================
  * 核心初始化/销毁
  * ============================================================ */
 

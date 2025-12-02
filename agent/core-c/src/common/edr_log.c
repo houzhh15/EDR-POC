@@ -57,9 +57,9 @@ static void get_timestamp(char* buffer, size_t buffer_size) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
     struct tm* tm_info = localtime(&tv.tv_sec);
-    snprintf(buffer, buffer_size, "%04d-%02d-%02d %02d:%02d:%02d.%03ld",
+    snprintf(buffer, buffer_size, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
              tm_info->tm_year + 1900, tm_info->tm_mon + 1, tm_info->tm_mday,
-             tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec, tv.tv_usec / 1000);
+             tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec, (int)(tv.tv_usec / 1000));
 #endif
 }
 
@@ -96,6 +96,7 @@ int edr_log_init(edr_log_level_t min_level, edr_log_target_t target, const char*
             return -1;
         }
         
+#ifdef _WIN32
         strncpy_s(g_log_config.log_file_path, sizeof(g_log_config.log_file_path),
                   log_file_path, _TRUNCATE);
         
@@ -104,6 +105,16 @@ int edr_log_init(edr_log_level_t min_level, edr_log_target_t target, const char*
         if (err != 0 || g_log_config.log_file_handle == NULL) {
             return -1;
         }
+#else
+        strncpy(g_log_config.log_file_path, log_file_path, sizeof(g_log_config.log_file_path) - 1);
+        g_log_config.log_file_path[sizeof(g_log_config.log_file_path) - 1] = '\0';
+        
+        // 打开日志文件(追加模式)
+        g_log_config.log_file_handle = fopen(log_file_path, "a");
+        if (g_log_config.log_file_handle == NULL) {
+            return -1;
+        }
+#endif
         
         // 设置行缓冲
         setvbuf(g_log_config.log_file_handle, NULL, _IOLBF, 0);
