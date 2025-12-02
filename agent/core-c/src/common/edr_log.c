@@ -56,10 +56,11 @@ static void get_timestamp(char* buffer, size_t buffer_size) {
 #else
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    struct tm* tm_info = localtime(&tv.tv_sec);
+    struct tm tm_info;
+    localtime_r(&tv.tv_sec, &tm_info);
     snprintf(buffer, buffer_size, "%04d-%02d-%02d %02d:%02d:%02d.%03d",
-             tm_info->tm_year + 1900, tm_info->tm_mon + 1, tm_info->tm_mday,
-             tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec, (int)(tv.tv_usec / 1000));
+             tm_info.tm_year + 1900, tm_info.tm_mon + 1, tm_info.tm_mday,
+             tm_info.tm_hour, tm_info.tm_min, tm_info.tm_sec, (int)(tv.tv_usec / 1000));
 #endif
 }
 
@@ -142,8 +143,8 @@ void edr_log(edr_log_level_t level, const char* file, int line, const char* form
         return;
     }
     
-    // 获取时间戳
-    char timestamp[32];
+    // 获取时间戳 (格式: YYYY-MM-DD HH:MM:SS.mmm = 23字符 + null)
+    char timestamp[64];
     get_timestamp(timestamp, sizeof(timestamp));
     
     // 提取文件名
