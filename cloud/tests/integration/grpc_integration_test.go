@@ -2,17 +2,17 @@
 package integration
 
 import (
-"context"
-"testing"
-"time"
+	"context"
+	"testing"
+	"time"
 
-"go.uber.org/zap"
-"google.golang.org/grpc"
-"google.golang.org/grpc/credentials/insecure"
-"google.golang.org/protobuf/types/known/timestamppb"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-grpcserver "github.com/houzhh15/EDR-POC/cloud/internal/grpc"
-pb "github.com/houzhh15/EDR-POC/cloud/pkg/proto/edr/v1"
+	grpcserver "github.com/houzhh15/EDR-POC/cloud/internal/grpc"
+	pb "github.com/houzhh15/EDR-POC/cloud/pkg/proto/edr/v1"
 )
 
 // mockEventProducer 模拟事件生产者
@@ -71,14 +71,14 @@ func TestGRPCServerIntegration(t *testing.T) {
 
 	// 创建 AgentService
 	agentService := grpcserver.NewAgentServiceServer(
-logger,
-producer,
-statusMgr,
-nil, // AssetRegistrar
-policyStore,
-nil, // CommandQueue
-nil, // 使用默认配置
-)
+		logger,
+		producer,
+		statusMgr,
+		nil, // AssetRegistrar
+		policyStore,
+		nil, // CommandQueue
+		nil, // 使用默认配置
+	)
 
 	// 创建服务器配置
 	config := &grpcserver.ServerConfig{
@@ -106,7 +106,7 @@ nil, // 使用默认配置
 
 	// 创建客户端连接
 	conn, err := grpc.Dial("localhost:19090",
-grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
@@ -117,7 +117,7 @@ grpc.WithTransportCredentials(insecure.NewCredentials()),
 
 	// 测试心跳
 	t.Run("Heartbeat", func(t *testing.T) {
-ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		resp, err := client.Heartbeat(ctx, &pb.HeartbeatRequest{
@@ -142,8 +142,8 @@ ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
 	// 测试健康检查
 	t.Run("HealthCheck", func(t *testing.T) {
-healthConn, err := grpc.Dial("localhost:19090",
-grpc.WithTransportCredentials(insecure.NewCredentials()),
+		healthConn, err := grpc.Dial("localhost:19090",
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
 		if err != nil {
 			t.Fatalf("Failed to connect for health check: %v", err)
@@ -168,14 +168,14 @@ func TestGRPCClientStreaming(t *testing.T) {
 	policyStore := &mockPolicyStore{}
 
 	agentService := grpcserver.NewAgentServiceServer(
-logger,
-producer,
-statusMgr,
-nil, // AssetRegistrar
-policyStore,
-nil,
-nil,
-)
+		logger,
+		producer,
+		statusMgr,
+		nil, // AssetRegistrar
+		policyStore,
+		nil,
+		nil,
+	)
 
 	config := &grpcserver.ServerConfig{
 		ListenAddr:     ":19091",
@@ -196,7 +196,7 @@ nil,
 	time.Sleep(100 * time.Millisecond)
 
 	conn, err := grpc.Dial("localhost:19091",
-grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		t.Fatalf("Failed to connect: %v", err)
@@ -206,7 +206,7 @@ grpc.WithTransportCredentials(insecure.NewCredentials()),
 	client := pb.NewAgentServiceClient(conn)
 
 	t.Run("ReportEvents", func(t *testing.T) {
-ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		stream, err := client.ReportEvents(ctx)
@@ -259,14 +259,14 @@ func BenchmarkHeartbeat(b *testing.B) {
 	policyStore := &mockPolicyStore{}
 
 	agentService := grpcserver.NewAgentServiceServer(
-logger,
-producer,
-statusMgr,
-nil, // AssetRegistrar
-policyStore,
-nil,
-nil,
-)
+		logger,
+		producer,
+		statusMgr,
+		nil, // AssetRegistrar
+		policyStore,
+		nil,
+		nil,
+	)
 
 	config := &grpcserver.ServerConfig{
 		ListenAddr:     ":19092",
@@ -287,7 +287,7 @@ nil,
 	time.Sleep(100 * time.Millisecond)
 
 	conn, err := grpc.Dial("localhost:19092",
-grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
 		b.Fatalf("Failed to connect: %v", err)

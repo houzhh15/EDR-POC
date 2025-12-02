@@ -66,6 +66,7 @@ void test_process_handle_lru_cache() {
     
     // 第二次获取(应该命中缓存)
     HANDLE handle2 = etw_get_process_handle(consumer, current_pid);
+    (void)handle2; // 用于缓存测试
     assert(handle2 == handle1);
     assert(consumer->cache_used == 1); // 缓存大小不变
     
@@ -105,6 +106,7 @@ void test_process_metadata_extraction() {
     char path[MAX_PATH] = {0};
     DWORD path_len = MAX_PATH;
     BOOL result = QueryFullProcessImageNameA(process_handle, 0, path, &path_len);
+    (void)result; // 用于断言检查
     assert(result != FALSE);
     assert(strlen(path) > 0);
     printf("  Current process path: %s\n", path);
@@ -165,11 +167,13 @@ void test_event_parsing() {
     
     // 推送到buffer
     int result = event_buffer_push(buffer, &test_event);
+    (void)result; // 用于断言检查
     assert(result == EDR_SUCCESS);
     
     // 从buffer取出
     edr_process_event_t popped_event = {0};
     result = event_buffer_pop(buffer, &popped_event);
+    (void)result; // 用于断言检查
     assert(result == EDR_SUCCESS);
     assert(popped_event.pid == test_event.pid);
     assert(strcmp(popped_event.process_name, test_event.process_name) == 0);

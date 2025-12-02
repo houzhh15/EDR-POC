@@ -1,15 +1,15 @@
 package grpc
 
 import (
-"context"
-"testing"
-"time"
+	"context"
+	"testing"
+	"time"
 
-"go.uber.org/zap"
-"google.golang.org/protobuf/types/known/timestamppb"
+	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-"github.com/houzhh15/EDR-POC/cloud/internal/grpc/interceptors"
-pb "github.com/houzhh15/EDR-POC/cloud/pkg/proto/edr/v1"
+	"github.com/houzhh15/EDR-POC/cloud/internal/grpc/interceptors"
+	pb "github.com/houzhh15/EDR-POC/cloud/pkg/proto/edr/v1"
 )
 
 // MockEventProducer 模拟 Kafka 生产者
