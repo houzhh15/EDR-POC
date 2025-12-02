@@ -11,6 +11,7 @@
 #include "ring_buffer.h"
 #include "module_manager.h"
 #include "edr_errors.h"
+#include "edr_events.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -296,7 +297,7 @@ int edr_start_process_collector(void** out_handle) {
     // 启动ETW Session(传递consumer的回调)
     int result = etw_session_start(
         session->session,
-        (event_callback_fn)parse_process_event,
+        (event_callback_fn)etw_process_consumer_callback,
         session->consumer
     );
     
@@ -310,11 +311,6 @@ int edr_start_process_collector(void** out_handle) {
     *out_handle = session;
     
     return EDR_SUCCESS;
-#else
-    // 非Windows平台暂不支持
-    (void)out_handle;
-    return EDR_ERROR_NOT_SUPPORTED;
-#endif
 }
 
 /**
@@ -344,11 +340,6 @@ int edr_stop_process_collector(void* handle) {
     free(session);
     
     return EDR_SUCCESS;
-#else
-    // 非Windows平台暂不支持
-    (void)handle;
-    return EDR_ERROR_NOT_SUPPORTED;
-#endif
 }
 
 /**
@@ -385,12 +376,40 @@ int edr_poll_process_events(
     *out_count = count;
     
     return EDR_SUCCESS;
-#else
-    // 非Windows平台暂不支持
+}
+
+#else  /* !_WIN32 */
+
+/**
+ * @brief 启动进程事件采集器(CGO接口) - 非Windows平台
+ */
+int edr_start_process_collector(void** out_handle) {
+    (void)out_handle;
+    return EDR_ERROR_NOT_SUPPORTED;
+}
+
+/**
+ * @brief 停止进程事件采集器(CGO接口) - 非Windows平台
+ */
+int edr_stop_process_collector(void* handle) {
     (void)handle;
-    (void)out_events;
-    (void)max_events;
+    return EDR_ERROR_NOT_SUPPORTED;
+}
+
+/**
+ * @brief 轮询进程事件(CGO接口) - 非Windows平台
+ */
+int edr_poll_process_events(
+    void* handle,
+    edr_process_event_t* events,
+    int max_count,
+    int* out_count
+) {
+    (void)handle;
+    (void)events;
+    (void)max_count;
     (void)out_count;
     return EDR_ERROR_NOT_SUPPORTED;
-#endif
 }
+
+#endif  /* _WIN32 */
