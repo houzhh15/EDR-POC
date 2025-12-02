@@ -1,5 +1,4 @@
-package integration
-// +build windows
+//go:build windows
 
 package integration
 

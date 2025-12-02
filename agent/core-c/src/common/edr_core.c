@@ -297,7 +297,7 @@ int edr_start_process_collector(void** out_handle) {
     // 启动ETW Session(传递consumer的回调)
     int result = etw_session_start(
         session->session,
-        (event_callback_fn)etw_process_consumer_callback,
+        (event_callback_fn)etw_process_event_callback,
         session->consumer
     );
     

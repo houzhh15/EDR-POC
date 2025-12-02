@@ -6,6 +6,7 @@ package cgo
 #cgo LDFLAGS: -L${SRCDIR}/../../../core-c/build -ledr_core -Wl,-rpath,${SRCDIR}/../../../core-c/build
 
 #include "edr_core.h"
+#include "edr_errors.h"
 */
 import "C"
 

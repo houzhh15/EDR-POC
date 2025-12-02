@@ -1,5 +1,4 @@
-package tests
-// +build windows
+//go:build windows
 
 package tests
 
