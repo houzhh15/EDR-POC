@@ -21,6 +21,8 @@ if(TEST_SOURCES)
             ${CMAKE_SOURCE_DIR}/src
             ${CMAKE_SOURCE_DIR}/src/queue
             ${CMAKE_SOURCE_DIR}/src/plugin
+            ${CMAKE_SOURCE_DIR}/src/collector
+            ${CMAKE_SOURCE_DIR}/src/collector/windows
         )
         add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
     endforeach()
