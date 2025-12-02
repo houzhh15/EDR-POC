@@ -46,6 +46,13 @@ func (m *MockAgentStatusManager) IsOnline(ctx context.Context, agentID string) (
 	return m.agents[agentID], nil
 }
 
+// MockAssetRegistrar 模拟资产注册器
+type MockAssetRegistrar struct{}
+
+func (m *MockAssetRegistrar) RegisterOrUpdateFromHeartbeat(ctx context.Context, agentID, tenantID, hostname, osType, agentVersion string, ipAddresses []string) error {
+	return nil
+}
+
 // MockPolicyStore 模拟策略存储
 type MockPolicyStore struct {
 	hasUpdate bool
@@ -108,10 +115,11 @@ func TestNewAgentServiceServer(t *testing.T) {
 	logger := zap.NewNop()
 	producer := &MockEventProducer{}
 	statusMgr := NewMockAgentStatusManager()
+	assetRegistrar := &MockAssetRegistrar{}
 	policyStore := &MockPolicyStore{}
 	commandQueue := NewMockCommandQueue()
 
-	server := NewAgentServiceServer(logger, producer, statusMgr, policyStore, commandQueue, nil)
+	server := NewAgentServiceServer(logger, producer, statusMgr, assetRegistrar, policyStore, commandQueue, nil)
 
 	if server == nil {
 		t.Fatal("NewAgentServiceServer returned nil")
@@ -133,7 +141,7 @@ func TestNewAgentServiceServerWithCustomConfig(t *testing.T) {
 		HeartbeatInterval:  20,
 	}
 
-	server := NewAgentServiceServer(logger, nil, nil, nil, nil, config)
+	server := NewAgentServiceServer(logger, nil, nil, nil, nil, nil, config)
 
 	if server.config.EventBatchSize != 50 {
 		t.Errorf("EventBatchSize = %d, want 50", server.config.EventBatchSize)
@@ -142,7 +150,7 @@ func TestNewAgentServiceServerWithCustomConfig(t *testing.T) {
 
 func TestHeartbeatWithoutAgentID(t *testing.T) {
 	logger := zap.NewNop()
-	server := NewAgentServiceServer(logger, nil, nil, nil, nil, nil)
+	server := NewAgentServiceServer(logger, nil, nil, nil, nil, nil, nil)
 
 	// context 中没有 agent_id
 	ctx := context.Background()
@@ -158,7 +166,7 @@ func TestHeartbeatSuccess(t *testing.T) {
 	statusMgr := NewMockAgentStatusManager()
 	policyStore := &MockPolicyStore{hasUpdate: true}
 
-	server := NewAgentServiceServer(logger, nil, statusMgr, policyStore, nil, nil)
+	server := NewAgentServiceServer(logger, nil, statusMgr, nil, policyStore, nil, nil)
 
 	// 模拟认证后的 context
 	ctx := context.WithValue(context.Background(), interceptors.AgentIDKey, "agent-123")
@@ -213,7 +221,7 @@ func TestFlushEvents(t *testing.T) {
 
 func TestFlushEventsWithNilProducer(t *testing.T) {
 	logger := zap.NewNop()
-	server := NewAgentServiceServer(logger, nil, nil, nil, nil, nil)
+	server := NewAgentServiceServer(logger, nil, nil, nil, nil, nil, nil)
 
 	events := []*pb.SecurityEvent{
 		{EventId: "event-1", EventType: "process_create", Timestamp: timestamppb.Now()},

@@ -76,7 +76,7 @@ func TestNewServerWithCustomConfig(t *testing.T) {
 
 func TestNewServerWithAgentService(t *testing.T) {
 	logger := zap.NewNop()
-	agentService := NewAgentServiceServer(logger, nil, nil, nil, nil, nil)
+	agentService := NewAgentServiceServer(logger, nil, nil, nil, nil, nil, nil)
 
 	server, err := NewServer(nil, logger, agentService, nil)
 	if err != nil {

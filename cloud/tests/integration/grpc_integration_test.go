@@ -74,6 +74,7 @@ func TestGRPCServerIntegration(t *testing.T) {
 logger,
 producer,
 statusMgr,
+nil, // AssetRegistrar
 policyStore,
 nil, // CommandQueue
 nil, // 使用默认配置
@@ -170,6 +171,7 @@ func TestGRPCClientStreaming(t *testing.T) {
 logger,
 producer,
 statusMgr,
+nil, // AssetRegistrar
 policyStore,
 nil,
 nil,
@@ -260,6 +262,7 @@ func BenchmarkHeartbeat(b *testing.B) {
 logger,
 producer,
 statusMgr,
+nil, // AssetRegistrar
 policyStore,
 nil,
 nil,

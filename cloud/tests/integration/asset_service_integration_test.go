@@ -65,6 +65,7 @@ func (s *AssetServiceIntegrationTestSuite) SetupSuite() {
 		s.logger,
 		&e2eMockEventProducer{},
 		&agentStatusAdapter{mgr: s.statusMgr},
+		nil, // assetRegistrar
 		nil, // policyStore
 		nil, // commandQueue
 		nil, // 使用默认配置
