@@ -1,25 +1,25 @@
 package interceptors
 
 import (
-"context"
-"fmt"
-"strings"
+	"context"
+	"fmt"
+	"strings"
 
-"github.com/golang-jwt/jwt/v5"
-"google.golang.org/grpc"
-"google.golang.org/grpc/codes"
-"google.golang.org/grpc/credentials"
-"google.golang.org/grpc/metadata"
-"google.golang.org/grpc/peer"
-"google.golang.org/grpc/status"
+	"github.com/golang-jwt/jwt/v5"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 // Context key 类型
 type contextKey string
 
 const (
-AgentIDKey  contextKey = "agent_id"
-TenantIDKey contextKey = "tenant_id"
+	AgentIDKey  contextKey = "agent_id"
+	TenantIDKey contextKey = "tenant_id"
 )
 
 // AgentClaims JWT Claims 结构
@@ -53,11 +53,13 @@ func GetTenantIDFromContext(ctx context.Context) string {
 // AuthInterceptor 创建 mTLS + JWT 认证拦截器
 func AuthInterceptor(agentStore AgentStore, jwtSecret []byte) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{},
-info *grpc.UnaryServerInfo,
-handler grpc.UnaryHandler) (interface{}, error) {
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler) (interface{}, error) {
 
-		// 跳过健康检查
-		if strings.Contains(info.FullMethod, "Health") {
+		// 跳过健康检查、反射服务和心跳（心跳在服务层自行验证 agent_id）
+		if strings.Contains(info.FullMethod, "Health") ||
+			strings.Contains(info.FullMethod, "grpc.reflection") ||
+			strings.Contains(info.FullMethod, "Heartbeat") {
 			return handler(ctx, req)
 		}
 
@@ -73,11 +75,13 @@ handler grpc.UnaryHandler) (interface{}, error) {
 // AuthStreamInterceptor 创建流式 mTLS + JWT 认证拦截器
 func AuthStreamInterceptor(agentStore AgentStore, jwtSecret []byte) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream,
-info *grpc.StreamServerInfo,
-handler grpc.StreamHandler) error {
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler) error {
 
-		// 跳过健康检查
-		if strings.Contains(info.FullMethod, "Health") {
+		// 跳过健康检查、反射服务和心跳
+		if strings.Contains(info.FullMethod, "Health") ||
+			strings.Contains(info.FullMethod, "grpc.reflection") ||
+			strings.Contains(info.FullMethod, "Heartbeat") {
 			return handler(srv, ss)
 		}
 

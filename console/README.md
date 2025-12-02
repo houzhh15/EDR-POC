@@ -108,14 +108,14 @@ pnpm test
 
 ## 📦 API 代理
 
-开发环境下，`/api` 路径会代理到 `http://localhost:8080`（API Gateway）。
+开发环境下，`/api` 路径会代理到 `http://localhost:9000`（API Gateway）。
 
 ```typescript
 // vite.config.ts
 server: {
   proxy: {
     '/api': {
-      target: 'http://localhost:8080',
+      target: 'http://localhost:9000',
       changeOrigin: true,
     },
   },

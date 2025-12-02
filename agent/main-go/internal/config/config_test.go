@@ -110,7 +110,7 @@ agent:
   id: "test-agent-001"
   name: "test-agent"
 cloud:
-  endpoint: "test.example.com:8080"
+  endpoint: "test.example.com:9000"
   tls:
     enabled: true
     ca_cert: "/etc/ssl/ca.pem"
@@ -138,8 +138,8 @@ log:
 		t.Errorf("expected agent.id = 'test-agent-001', got %s", cfg.Agent.ID)
 	}
 
-	if cfg.Cloud.Endpoint != "test.example.com:8080" {
-		t.Errorf("expected cloud.endpoint = 'test.example.com:8080', got %s", cfg.Cloud.Endpoint)
+	if cfg.Cloud.Endpoint != "test.example.com:9000" {
+		t.Errorf("expected cloud.endpoint = 'test.example.com:9000', got %s", cfg.Cloud.Endpoint)
 	}
 
 	if !cfg.Cloud.TLS.Enabled {
@@ -166,7 +166,7 @@ func TestLoader_LoadWithEnvOverride(t *testing.T) {
 
 	configContent := `
 cloud:
-  endpoint: "file.example.com:8080"
+  endpoint: "file.example.com:9000"
 collector:
   buffer_size: 5000
 `
@@ -195,7 +195,7 @@ func TestLoadAndValidate(t *testing.T) {
 	// 有效配置
 	validConfig := `
 cloud:
-  endpoint: "example.com:8080"
+  endpoint: "example.com:9000"
 collector:
   buffer_size: 5000
 `

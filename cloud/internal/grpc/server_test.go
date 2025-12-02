@@ -1,10 +1,10 @@
 package grpc
 
 import (
-"testing"
-"time"
+	"testing"
+	"time"
 
-"go.uber.org/zap"
+	"go.uber.org/zap"
 )
 
 func TestDefaultServerConfig(t *testing.T) {
@@ -54,7 +54,7 @@ func TestNewServerWithDefaultConfig(t *testing.T) {
 func TestNewServerWithCustomConfig(t *testing.T) {
 	logger := zap.NewNop()
 	config := &ServerConfig{
-		ListenAddr:           ":8080",
+		ListenAddr:           ":9080",
 		MaxRecvMsgSize:       8 * 1024 * 1024,
 		MaxSendMsgSize:       8 * 1024 * 1024,
 		MaxConcurrentStreams: 500,
@@ -69,8 +69,8 @@ func TestNewServerWithCustomConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
-	if server.config.ListenAddr != ":8080" {
-		t.Errorf("ListenAddr = %s, want :8080", server.config.ListenAddr)
+	if server.config.ListenAddr != ":9080" {
+		t.Errorf("ListenAddr = %s, want :9080", server.config.ListenAddr)
 	}
 }
 

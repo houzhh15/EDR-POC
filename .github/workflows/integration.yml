@@ -1,0 +1,274 @@
+# ============================================================
+# EDR Platform - 集成测试流水线
+# ============================================================
+# 触发条件: push 到 main/develop, PR 到 main/develop
+# 运行条件: 仅当 cloud 目录有变更时触发
+# 依赖服务: PostgreSQL, Redis
+# ============================================================
+
+name: Integration Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'cloud/**'
+      - '.github/workflows/integration.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'cloud/**'
+      - '.github/workflows/integration.yml'
+
+env:
+  GO_VERSION: '1.21'
+  POSTGRES_USER: edr_test
+  POSTGRES_PASSWORD: edr_test_password
+  POSTGRES_DB: edr_test
+  REDIS_PASSWORD: ''
+
+jobs:
+  # ============================================================
+  # 单元测试 (不依赖外部服务)
+  # ============================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: cloud/go.sum
+
+      - name: Download Dependencies
+        working-directory: cloud
+        run: go mod download
+
+      - name: Run Unit Tests
+        working-directory: cloud
+        run: |
+          go test -v -short -race -coverprofile=coverage.out ./internal/...
+          go tool cover -func=coverage.out
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: cloud/coverage.out
+          flags: unit-tests
+          fail_ci_if_error: false
+
+  # ============================================================
+  # 集成测试 (依赖 PostgreSQL + Redis)
+  # ============================================================
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-22.04
+    needs: unit-tests
+    
+    services:
+      # PostgreSQL 服务
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Redis 服务
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # 测试环境变量
+      TEST_POSTGRES_DSN: postgres://edr_test:edr_test_password@localhost:5432/edr_test?sslmode=disable
+      TEST_REDIS_ADDR: localhost:6379
+      DB_PATH: ':memory:'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: cloud/go.sum
+
+      - name: Download Dependencies
+        working-directory: cloud
+        run: go mod download
+
+      - name: Wait for Services
+        run: |
+          echo "等待 PostgreSQL..."
+          until pg_isready -h localhost -p 5432 -U edr_test; do
+            sleep 2
+          done
+          echo "PostgreSQL 已就绪"
+          
+          echo "等待 Redis..."
+          until redis-cli -h localhost ping | grep -q PONG; do
+            sleep 2
+          done
+          echo "Redis 已就绪"
+
+      - name: Run Database Migrations
+        working-directory: cloud
+        run: |
+          # 应用数据库迁移 (如果使用 migrate 工具)
+          if command -v migrate &> /dev/null; then
+            migrate -path ./migrations -database "$TEST_POSTGRES_DSN" up
+          else
+            echo "跳过迁移: migrate 工具未安装，使用 GORM AutoMigrate"
+          fi
+
+      - name: Run Integration Tests
+        working-directory: cloud
+        run: |
+          go test -v -race -coverprofile=integration-coverage.out \
+            -timeout 10m \
+            ./tests/integration/...
+
+      - name: Run Asset Module Tests
+        working-directory: cloud
+        run: |
+          go test -v -race ./internal/asset/...
+
+      - name: Upload Integration Coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: cloud/integration-coverage.out
+          flags: integration-tests
+          fail_ci_if_error: false
+
+  # ============================================================
+  # API 端到端测试 (启动完整服务)
+  # ============================================================
+  e2e-tests:
+    name: E2E API Tests
+    runs-on: ubuntu-22.04
+    needs: integration-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # Kafka (使用 Redpanda)
+      kafka:
+        image: redpandadata/redpanda:v23.3.5
+        ports:
+          - 9092:9092
+        options: >-
+          --health-cmd "rpk cluster health"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 10
+
+    env:
+      TEST_REDIS_ADDR: localhost:6379
+      DB_PATH: ':memory:'
+      KAFKA_BROKERS: localhost:9092
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: cloud/go.sum
+
+      - name: Build API Gateway
+        working-directory: cloud
+        run: go build -o ./bin/api-gateway ./cmd/api-gateway/...
+
+      - name: Start API Gateway
+        working-directory: cloud
+        run: |
+          ./bin/api-gateway &
+          sleep 5
+          # 健康检查
+          curl -f http://localhost:9080/health || exit 1
+        env:
+          DB_PATH: ':memory:'
+
+      - name: Run E2E Tests
+        run: |
+          # 测试健康检查端点
+          curl -f http://localhost:9080/health
+          
+          # 测试资产列表端点 (需要租户ID)
+          curl -s -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000001" \
+            http://localhost:9080/api/v1/assets | jq .
+          
+          # 测试分组列表端点
+          curl -s -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000001" \
+            http://localhost:9080/api/v1/asset-groups | jq .
+
+      - name: Stop API Gateway
+        if: always()
+        run: pkill -f api-gateway || true
+
+  # ============================================================
+  # 测试报告
+  # ============================================================
+  test-report:
+    name: Test Report
+    runs-on: ubuntu-22.04
+    needs: [unit-tests, integration-tests]
+    if: always()
+    
+    steps:
+      - name: Test Summary
+        run: |
+          echo "## 测试结果汇总" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 测试类型 | 状态 |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 单元测试 | ${{ needs.unit-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 集成测试 | ${{ needs.integration-tests.result }} |" >> $GITHUB_STEP_SUMMARY

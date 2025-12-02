@@ -8,31 +8,33 @@
 package main
 
 import (
-"context"
-"fmt"
-"net/http"
-"os"
-"os/signal"
-"syscall"
-"time"
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-"github.com/gin-gonic/gin"
-"github.com/redis/go-redis/v9"
-"go.uber.org/zap"
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
-"github.com/houzhh15/EDR-POC/cloud/internal/asset"
-"github.com/houzhh15/EDR-POC/cloud/internal/config"
-"github.com/houzhh15/EDR-POC/cloud/internal/event"
-grpcserver "github.com/houzhh15/EDR-POC/cloud/internal/grpc"
-"github.com/houzhh15/EDR-POC/cloud/pkg/auth"
-pb "github.com/houzhh15/EDR-POC/cloud/pkg/proto/edr/v1"
+	"github.com/houzhh15/EDR-POC/cloud/internal/asset"
+	"github.com/houzhh15/EDR-POC/cloud/internal/config"
+	"github.com/houzhh15/EDR-POC/cloud/internal/event"
+	grpcserver "github.com/houzhh15/EDR-POC/cloud/internal/grpc"
+	"github.com/houzhh15/EDR-POC/cloud/pkg/auth"
+	pb "github.com/houzhh15/EDR-POC/cloud/pkg/proto/edr/v1"
 )
 
 // 版本信息
 var (
-Version   = "0.1.0"
-GitCommit = "unknown"
-BuildTime = "unknown"
+	Version   = "0.1.0"
+	GitCommit = "unknown"
+	BuildTime = "unknown"
 )
 
 // eventProducerAdapter 适配器：将 event.KafkaProducer 转换为 grpc.EventProducer
@@ -94,9 +96,9 @@ func main() {
 	defer logger.Sync()
 
 	logger.Info("API Gateway starting",
-zap.String("version", Version),
-zap.String("commit", GitCommit),
-)
+		zap.String("version", Version),
+		zap.String("commit", GitCommit),
+	)
 
 	// 加载配置
 	cfg, err := config.LoadGRPCConfig("configs/grpc.yaml")
@@ -123,15 +125,15 @@ zap.String("commit", GitCommit),
 
 	// 初始化 Kafka 事件生产者
 	kafkaProducer := event.NewKafkaProducer(
-cfg.Kafka.Brokers,
-cfg.Kafka.Topic,
-logger.Named("kafka"),
-)
+		cfg.Kafka.Brokers,
+		cfg.Kafka.Topic,
+		logger.Named("kafka"),
+	)
 	defer kafkaProducer.Close()
 	logger.Info("Kafka producer initialized",
-zap.Strings("brokers", cfg.Kafka.Brokers),
-zap.String("topic", cfg.Kafka.Topic),
-)
+		zap.Strings("brokers", cfg.Kafka.Brokers),
+		zap.String("topic", cfg.Kafka.Topic),
+	)
 
 	// 创建事件生产者适配器
 	producerAdapter := &eventProducerAdapter{
@@ -150,6 +152,40 @@ zap.String("topic", cfg.Kafka.Topic),
 	agentStatusManager := asset.NewAgentStatusManager(redisClient, logger.Named("asset"))
 	logger.Info("Redis agent status manager initialized", zap.String("addr", cfg.Redis.Addr))
 
+	// 初始化 PostgreSQL 数据库
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		// 默认连接本地 Docker PostgreSQL（端口 15432 避免与本地 PG 冲突）
+		dsn = "host=localhost port=15432 user=edr password=edr_dev_password dbname=edr sslmode=disable"
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		logger.Fatal("Failed to connect to database", zap.Error(err))
+	}
+	logger.Info("PostgreSQL database connected")
+
+	// 注意: 数据库表已通过 migrations/*.sql 手动创建
+	// 如果需要自动迁移，取消下面的注释
+	// if err := db.AutoMigrate(
+	// 	&asset.Asset{},
+	// 	&asset.AssetGroup{},
+	// 	&asset.AssetGroupMember{},
+	// 	&asset.SoftwareInventory{},
+	// 	&asset.AssetChangeLog{},
+	// ); err != nil {
+	// 	logger.Fatal("Failed to migrate database", zap.Error(err))
+	// }
+	// logger.Info("Database migration completed")
+
+	// 初始化资产服务
+	assetRepo := asset.NewAssetRepository(db, logger.Named("asset-repo"))
+	changeLogger := asset.NewChangeLogger(db, logger.Named("changelog"))
+	assetService := asset.NewAssetService(assetRepo, agentStatusManager, changeLogger, logger.Named("asset-service"))
+	groupService := asset.NewGroupService(db, logger.Named("group-service"))
+	softwareService := asset.NewSoftwareService(db, logger.Named("software-service"))
+	assetHandler := asset.NewAssetHandler(assetService, groupService, softwareService, changeLogger, logger.Named("asset-api"))
+	logger.Info("Asset services initialized")
+
 	// 创建状态管理适配器
 	statusAdapter := &statusManagerAdapter{
 		manager: agentStatusManager,
@@ -157,26 +193,34 @@ zap.String("topic", cfg.Kafka.Topic),
 
 	// 创建 AgentService
 	agentService := grpcserver.NewAgentServiceServer(
-logger.Named("agent-service"),
-producerAdapter,
-statusAdapter,
-nil, // PolicyStore - TODO: 实现
-nil, // CommandQueue - TODO: 实现
-nil, // 使用默认配置
-)
+		logger.Named("agent-service"),
+		producerAdapter,
+		statusAdapter,
+		assetService, // AssetRegistrar - 同步资产到 PostgreSQL
+		nil,          // PolicyStore - TODO: 实现
+		nil,          // CommandQueue - TODO: 实现
+		nil,          // 使用默认配置
+	)
 	logger.Info("AgentService created")
 
 	// 创建 gRPC 服务配置
 	grpcConfig := &grpcserver.ServerConfig{
 		ListenAddr:           cfg.GRPC.ListenAddr,
-		TLSCertFile:          cfg.TLS.CertFile,
-		TLSKeyFile:           cfg.TLS.KeyFile,
-		TLSCAFile:            cfg.TLS.CAFile,
 		MaxRecvMsgSize:       cfg.Limits.MaxRecvMsgSize,
 		MaxSendMsgSize:       cfg.Limits.MaxSendMsgSize,
 		MaxConcurrentStreams: cfg.Limits.MaxConcurrentStreams,
 		KeepaliveTime:        time.Duration(cfg.Keepalive.Time) * time.Second,
 		KeepaliveTimeout:     time.Duration(cfg.Keepalive.Timeout) * time.Second,
+	}
+
+	// 仅在 TLS 启用时配置证书
+	if cfg.TLS.Enabled {
+		grpcConfig.TLSCertFile = cfg.TLS.CertFile
+		grpcConfig.TLSKeyFile = cfg.TLS.KeyFile
+		grpcConfig.TLSCAFile = cfg.TLS.CAFile
+		logger.Info("TLS enabled for gRPC server")
+	} else {
+		logger.Info("TLS disabled for gRPC server (plaintext mode)")
 	}
 
 	// 设置默认值
@@ -200,11 +244,11 @@ nil, // 使用默认配置
 
 	// 创建 gRPC 服务器
 	grpcServer, err := grpcserver.NewServer(
-grpcConfig,
-logger.Named("grpc"),
-agentService,
-nil, // AgentStore for auth - 可选
-)
+		grpcConfig,
+		logger.Named("grpc"),
+		agentService,
+		nil, // AgentStore for auth - 可选
+	)
 	if err != nil {
 		logger.Fatal("Failed to create gRPC server", zap.Error(err))
 	}
@@ -221,38 +265,83 @@ nil, // AgentStore for auth - 可选
 	router := gin.New()
 	router.Use(gin.Recovery())
 
+	// 开发环境 Mock 认证中间件 - 为所有请求设置默认 tenant_id
+	// 生产环境应使用真实的 JWT 认证中间件
+	mockTenantID := "00000000-0000-0000-0000-000000000001"
+	router.Use(func(c *gin.Context) {
+		// 检查 Header 中是否有自定义 tenant_id，否则使用默认值
+		tenantID := c.GetHeader("X-Tenant-ID")
+		if tenantID == "" {
+			tenantID = mockTenantID
+		}
+		c.Set("tenant_id", tenantID)
+		c.Next()
+	})
+
 	// 健康检查
 	router.GET("/health", func(c *gin.Context) {
-c.JSON(http.StatusOK, gin.H{
-"status":  "healthy",
-"version": Version,
-"services": gin.H{
-"http": "running",
-"grpc": "running",
-},
-})
-})
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "healthy",
+			"version": Version,
+			"services": gin.H{
+				"http": "running",
+				"grpc": "running",
+			},
+		})
+	})
 
 	// API v1 路由组
 	v1 := router.Group("/api/v1")
 	{
+		// 注册资产管理 API
+		assetHandler.RegisterRoutes(v1)
+
 		// Agent 相关 API
 		v1.GET("/agents", func(c *gin.Context) {
-// TODO: 实现 Agent 列表查询
-c.JSON(http.StatusOK, gin.H{"agents": []string{}})
-})
+			// TODO: 实现 Agent 列表查询
+			c.JSON(http.StatusOK, gin.H{"agents": []string{}})
+		})
 
 		// 告警相关 API
 		v1.GET("/alerts", func(c *gin.Context) {
-// TODO: 实现告警查询
-c.JSON(http.StatusOK, gin.H{"alerts": []string{}})
-})
+			// TODO: 实现告警查询
+			c.JSON(http.StatusOK, gin.H{"alerts": []string{}})
+		})
 
 		// 事件相关 API
 		v1.GET("/events", func(c *gin.Context) {
-// TODO: 实现事件查询
-c.JSON(http.StatusOK, gin.H{"events": []string{}})
-})
+			// TODO: 实现事件查询
+			c.JSON(http.StatusOK, gin.H{"events": []string{}})
+		})
+
+		// Mock 登录 API（开发测试用）
+		// 默认用户: admin / admin123
+		v1.POST("/auth/login", func(c *gin.Context) {
+			var req struct {
+				Username string `json:"username"`
+				Password string `json:"password"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+
+			// Mock 验证：admin/admin123
+			if req.Username == "admin" && req.Password == "admin123" {
+				c.JSON(http.StatusOK, gin.H{
+					"token":      "mock-jwt-token-for-console-dev",
+					"expires_in": 86400,
+					"user": gin.H{
+						"id":       "1",
+						"username": "admin",
+						"role":     "admin",
+					},
+				})
+				return
+			}
+
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
+		})
 
 		// Token 生成 API
 		if cfg.JWT.Secret != "" {
@@ -265,11 +354,11 @@ c.JSON(http.StatusOK, gin.H{"events": []string{}})
 			tokenManager := auth.NewTokenManager(tokenConfig)
 
 			v1.POST("/auth/token", func(c *gin.Context) {
-var req struct {
-AgentID  string `json:"agent_id"`
-TenantID string `json:"tenant_id"`
-}
-if err := c.ShouldBindJSON(&req); err != nil {
+				var req struct {
+					AgentID  string `json:"agent_id"`
+					TenantID string `json:"tenant_id"`
+				}
+				if err := c.ShouldBindJSON(&req); err != nil {
 					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 					return
 				}
@@ -281,16 +370,16 @@ if err := c.ShouldBindJSON(&req); err != nil {
 				}
 
 				c.JSON(http.StatusOK, gin.H{
-"token":      token,
-"expires_in": cfg.JWT.ExpiresIn,
-})
+					"token":      token,
+					"expires_in": cfg.JWT.ExpiresIn,
+				})
 			})
 
 			v1.POST("/auth/refresh", func(c *gin.Context) {
-var req struct {
-Token string `json:"token"`
-}
-if err := c.ShouldBindJSON(&req); err != nil {
+				var req struct {
+					Token string `json:"token"`
+				}
+				if err := c.ShouldBindJSON(&req); err != nil {
 					c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 					return
 				}
@@ -302,15 +391,15 @@ if err := c.ShouldBindJSON(&req); err != nil {
 				}
 
 				c.JSON(http.StatusOK, gin.H{
-"token":      newToken,
-"expires_in": cfg.JWT.ExpiresIn,
-})
+					"token":      newToken,
+					"expires_in": cfg.JWT.ExpiresIn,
+				})
 			})
 		}
 	}
 
 	// 创建 HTTP 服务器
-	httpAddr := ":8080"
+	httpAddr := ":9080"
 	srv := &http.Server{
 		Addr:    httpAddr,
 		Handler: router,
@@ -325,9 +414,9 @@ if err := c.ShouldBindJSON(&req); err != nil {
 	}()
 
 	logger.Info("API Gateway started successfully",
-zap.String("http_addr", httpAddr),
-zap.String("grpc_addr", grpcConfig.ListenAddr),
-)
+		zap.String("http_addr", httpAddr),
+		zap.String("grpc_addr", grpcConfig.ListenAddr),
+	)
 
 	// 等待退出信号
 	quit := make(chan os.Signal, 1)

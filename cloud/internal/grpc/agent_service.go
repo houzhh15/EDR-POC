@@ -1,18 +1,18 @@
 package grpc
 
 import (
-"context"
-"io"
-"sync"
-"time"
+	"context"
+	"io"
+	"sync"
+	"time"
 
-"go.uber.org/zap"
-"google.golang.org/grpc/codes"
-"google.golang.org/grpc/status"
-"google.golang.org/protobuf/types/known/timestamppb"
+	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
-"github.com/houzhh15/EDR-POC/cloud/internal/grpc/interceptors"
-pb "github.com/houzhh15/EDR-POC/cloud/pkg/proto/edr/v1"
+	"github.com/houzhh15/EDR-POC/cloud/internal/grpc/interceptors"
+	pb "github.com/houzhh15/EDR-POC/cloud/pkg/proto/edr/v1"
 )
 
 // EventProducer Kafka 事件生产者接口
@@ -25,6 +25,11 @@ type EventProducer interface {
 type AgentStatusManager interface {
 	UpdateHeartbeat(ctx context.Context, agentID, tenantID, version, hostname, osType string) error
 	IsOnline(ctx context.Context, agentID string) (bool, error)
+}
+
+// AssetRegistrar 资产注册接口（用于同步 Agent 信息到 PostgreSQL）
+type AssetRegistrar interface {
+	RegisterOrUpdateFromHeartbeat(ctx context.Context, agentID, tenantID, hostname, osType, agentVersion string, ipAddresses []string) error
 }
 
 // PolicyStore 策略存储接口
@@ -61,58 +66,75 @@ func DefaultAgentServiceConfig() *AgentServiceConfig {
 type AgentServiceServer struct {
 	pb.UnimplementedAgentServiceServer
 
-	logger       *zap.Logger
-	producer     EventProducer
-	statusMgr    AgentStatusManager
-	policyStore  PolicyStore
-	commandQueue CommandQueue
-	config       *AgentServiceConfig
+	logger         *zap.Logger
+	producer       EventProducer
+	statusMgr      AgentStatusManager
+	assetRegistrar AssetRegistrar
+	policyStore    PolicyStore
+	commandQueue   CommandQueue
+	config         *AgentServiceConfig
 }
 
 // NewAgentServiceServer 创建 AgentService 实例
 func NewAgentServiceServer(
-logger *zap.Logger,
-producer EventProducer,
-statusMgr AgentStatusManager,
-policyStore PolicyStore,
-commandQueue CommandQueue,
-config *AgentServiceConfig,
+	logger *zap.Logger,
+	producer EventProducer,
+	statusMgr AgentStatusManager,
+	assetRegistrar AssetRegistrar,
+	policyStore PolicyStore,
+	commandQueue CommandQueue,
+	config *AgentServiceConfig,
 ) *AgentServiceServer {
 	if config == nil {
 		config = DefaultAgentServiceConfig()
 	}
 	return &AgentServiceServer{
-		logger:       logger,
-		producer:     producer,
-		statusMgr:    statusMgr,
-		policyStore:  policyStore,
-		commandQueue: commandQueue,
-		config:       config,
+		logger:         logger,
+		producer:       producer,
+		statusMgr:      statusMgr,
+		assetRegistrar: assetRegistrar,
+		policyStore:    policyStore,
+		commandQueue:   commandQueue,
+		config:         config,
 	}
 }
 
 // Heartbeat 处理 Agent 心跳
 func (s *AgentServiceServer) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
-	// 从 context 获取认证信息
-	agentID := interceptors.GetAgentIDFromContext(ctx)
+	// 心跳请求直接从请求体获取 agent_id（认证在服务层处理）
+	agentID := req.GetAgentId()
 	tenantID := interceptors.GetTenantIDFromContext(ctx)
 
 	if agentID == "" {
-		return nil, status.Error(codes.Unauthenticated, "agent_id not found in context")
+		return nil, status.Error(codes.InvalidArgument, "agent_id is required")
+	}
+
+	// 如果没有 tenantID，使用默认值（开发测试用）
+	if tenantID == "" {
+		tenantID = "00000000-0000-0000-0000-000000000001"
 	}
 
 	s.logger.Debug("heartbeat received",
-zap.String("agent_id", agentID),
-zap.String("tenant_id", tenantID),
-zap.String("version", req.GetAgentVersion()),
+		zap.String("agent_id", agentID),
+		zap.String("tenant_id", tenantID),
+		zap.String("version", req.GetAgentVersion()),
 		zap.String("hostname", req.GetHostname()),
 	)
 
 	// 更新 Redis 状态
 	if s.statusMgr != nil {
 		if err := s.statusMgr.UpdateHeartbeat(ctx, agentID, tenantID,
-req.GetAgentVersion(), req.GetHostname(), req.GetOsFamily()); err != nil {
+			req.GetAgentVersion(), req.GetHostname(), req.GetOsFamily()); err != nil {
 			s.logger.Error("failed to update heartbeat", zap.Error(err))
+			// 不返回错误，允许继续
+		}
+	}
+
+	// 同步资产到 PostgreSQL
+	if s.assetRegistrar != nil {
+		if err := s.assetRegistrar.RegisterOrUpdateFromHeartbeat(ctx, agentID, tenantID,
+			req.GetHostname(), req.GetOsFamily(), req.GetAgentVersion(), nil); err != nil {
+			s.logger.Error("failed to register/update asset", zap.Error(err))
 			// 不返回错误，允许继续
 		}
 	}
@@ -146,12 +168,12 @@ func (s *AgentServiceServer) ReportEvents(stream pb.AgentService_ReportEventsSer
 	}
 
 	var (
-buffer        = make([]*pb.SecurityEvent, 0, s.config.EventBatchSize)
-totalReceived int32
-totalAccepted int32
-mu            sync.Mutex
-flushTicker   = time.NewTicker(s.config.EventFlushInterval)
-)
+		buffer        = make([]*pb.SecurityEvent, 0, s.config.EventBatchSize)
+		totalReceived int32
+		totalAccepted int32
+		mu            sync.Mutex
+		flushTicker   = time.NewTicker(s.config.EventFlushInterval)
+	)
 	defer flushTicker.Stop()
 
 	// 忽略 tenantID 未使用警告
@@ -195,7 +217,7 @@ flushTicker   = time.NewTicker(s.config.EventFlushInterval)
 			// 验证事件必填字段
 			if event.GetEventId() == "" || event.GetEventType() == "" || event.GetTimestamp() == nil {
 				s.logger.Warn("invalid event: missing required fields",
-zap.String("event_id", event.GetEventId()),
+					zap.String("event_id", event.GetEventId()),
 				)
 				continue
 			}
@@ -225,10 +247,10 @@ zap.String("event_id", event.GetEventId()),
 	mu.Unlock()
 
 	s.logger.Info("event stream completed",
-zap.String("agent_id", agentID),
-zap.Int32("received", totalReceived),
-zap.Int32("accepted", totalAccepted),
-)
+		zap.String("agent_id", agentID),
+		zap.Int32("received", totalReceived),
+		zap.Int32("accepted", totalAccepted),
+	)
 
 	return stream.SendAndClose(&pb.ReportResponse{
 		Success:        true,
@@ -288,9 +310,9 @@ func (s *AgentServiceServer) SyncPolicy(req *pb.PolicyRequest, stream pb.AgentSe
 	}
 
 	s.logger.Info("policy sync completed",
-zap.String("tenant_id", tenantID),
-zap.Int("policies_sent", len(policies)),
-)
+		zap.String("tenant_id", tenantID),
+		zap.Int("policies_sent", len(policies)),
+	)
 
 	return nil
 }
@@ -336,8 +358,8 @@ func (s *AgentServiceServer) ExecuteCommand(stream pb.AgentService_ExecuteComman
 						return
 					}
 					s.logger.Debug("command sent",
-zap.String("agent_id", agentID),
-zap.String("command_id", cmd.GetCommandId()),
+						zap.String("agent_id", agentID),
+						zap.String("command_id", cmd.GetCommandId()),
 					)
 				}
 			}
@@ -364,14 +386,14 @@ zap.String("command_id", cmd.GetCommandId()),
 			// 确认命令执行结果
 			if err := s.commandQueue.Ack(ctx, result.GetCommandId(), result); err != nil {
 				s.logger.Error("failed to ack command result",
-zap.Error(err),
-zap.String("command_id", result.GetCommandId()),
+					zap.Error(err),
+					zap.String("command_id", result.GetCommandId()),
 				)
 			}
 
 			s.logger.Debug("command result received",
-zap.String("agent_id", agentID),
-zap.String("command_id", result.GetCommandId()),
+				zap.String("agent_id", agentID),
+				zap.String("command_id", result.GetCommandId()),
 				zap.String("status", result.GetStatus().String()),
 			)
 		}

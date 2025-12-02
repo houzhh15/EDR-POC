@@ -6,7 +6,7 @@ EDR 云端服务模块，采用微服务架构，负责事件处理、检测分�
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| API Gateway | 8080 | REST API / gRPC 网关 |
+| API Gateway | 9080 | REST API / gRPC 网关 |
 | Event Processor | - | 事件消费和存储 |
 | Detection Engine | - | 规则检测引擎 |
 | Alert Manager | - | 告警管理 |
@@ -89,7 +89,7 @@ go build -o ../build/bin/alert-manager ./cmd/alert-manager
 ```yaml
 # config.yaml
 server:
-  http_port: 8080
+  http_port: 9080
   grpc_port: 9090
 
 database:

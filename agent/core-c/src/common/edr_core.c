@@ -256,3 +256,148 @@ edr_error_t edr_response_quarantine_file(const char* file_path, const char* quar
 void* edr_core_get_event_queue(void) {
     return (void*)g_event_queue;
 }
+
+/* ============================================================
+ * CGO桥接API - Windows进程事件采集器
+ * ============================================================ */
+
+#ifdef _WIN32
+#include "../collector/windows/etw_session.h"
+#include "../collector/windows/etw_process.h"
+#include "event_buffer.h"
+
+/**
+ * @brief Session句柄结构体(内部使用)
+ */
+typedef struct {
+    etw_session_t* session;
+    etw_process_consumer_t* consumer;
+} edr_collector_session_t;
+
+/**
+ * @brief 启动进程事件采集器(CGO接口)
+ * 
+ * @param out_handle 输出Session句柄指针
+ * @return 0=成功, 非0=错误码
+ */
+int edr_start_process_collector(void** out_handle) {
+    if (!g_initialized) {
+        return EDR_ERR_NOT_INITIALIZED;
+    }
+    
+    if (out_handle == NULL) {
+        return EDR_ERR_INVALID_PARAM;
+    }
+    
+    // 获取全局事件队列
+    event_buffer_t* queue = (event_buffer_t*)edr_core_get_event_queue();
+    if (queue == NULL) {
+        return EDR_ERR_NOT_INITIALIZED;
+    }
+    
+    // 分配Session结构
+    edr_collector_session_t* session = (edr_collector_session_t*)calloc(1, sizeof(edr_collector_session_t));
+    if (session == NULL) {
+        return EDR_ERR_NO_MEMORY;
+    }
+    
+    // 创建进程事件消费者
+    session->consumer = etw_process_consumer_create(queue);
+    if (session->consumer == NULL) {
+        free(session);
+        return EDR_ERR_NO_MEMORY;
+    }
+    
+    // 初始化ETW Session
+    session->session = etw_session_init(ETW_SESSION_NAME);
+    if (session->session == NULL) {
+        etw_process_consumer_destroy(session->consumer);
+        free(session);
+        return EDR_ERR_NO_MEMORY;
+    }
+    
+    // 启动ETW Session(传递consumer的回调)
+    int result = etw_session_start(
+        session->session,
+        (event_callback_fn)parse_process_event,
+        session->consumer
+    );
+    
+    if (result != EDR_SUCCESS) {
+        etw_session_destroy(session->session);
+        etw_process_consumer_destroy(session->consumer);
+        free(session);
+        return result;
+    }
+    
+    *out_handle = session;
+    
+    return EDR_SUCCESS;
+}
+
+/**
+ * @brief 停止进程事件采集器(CGO接口)
+ * 
+ * @param handle Session句柄
+ * @return 0=成功, 非0=错误码
+ */
+int edr_stop_process_collector(void* handle) {
+    if (handle == NULL) {
+        return EDR_ERR_INVALID_PARAM;
+    }
+    
+    edr_collector_session_t* session = (edr_collector_session_t*)handle;
+    
+    // 停止ETW Session
+    if (session->session != NULL) {
+        etw_session_stop(session->session);
+        etw_session_destroy(session->session);
+    }
+    
+    // 销毁Consumer
+    if (session->consumer != NULL) {
+        etw_process_consumer_destroy(session->consumer);
+    }
+    
+    free(session);
+    
+    return EDR_SUCCESS;
+}
+
+/**
+ * @brief 轮询进程事件(CGO接口,批量获取)
+ * 
+ * @param handle Session句柄
+ * @param events 事件数组指针(调用者分配)
+ * @param max_count 最大获取数量
+ * @param out_count 实际获取数量
+ * @return 0=成功, 非0=错误码
+ */
+int edr_poll_process_events(
+    void* handle,
+    edr_process_event_t* events,
+    int max_count,
+    int* out_count
+) {
+    if (handle == NULL || events == NULL || out_count == NULL) {
+        return EDR_ERR_INVALID_PARAM;
+    }
+    
+    if (max_count <= 0) {
+        *out_count = 0;
+        return EDR_SUCCESS;
+    }
+    
+    // 从全局队列批量pop事件
+    event_buffer_t* queue = (event_buffer_t*)edr_core_get_event_queue();
+    if (queue == NULL) {
+        return EDR_ERR_NOT_INITIALIZED;
+    }
+    
+    int count = event_buffer_pop_batch(queue, events, max_count);
+    *out_count = count;
+    
+    return EDR_SUCCESS;
+}
+
+#endif /* _WIN32 */

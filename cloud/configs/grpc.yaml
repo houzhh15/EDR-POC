@@ -5,8 +5,9 @@ grpc:
 
 # TLS/mTLS 配置
 # 开发环境使用项目内证书，生产环境应配置 /etc/edr/certs/
+# 本地测试时设为 false，生产环境设为 true
 tls:
-  enabled: true
+  enabled: false
   cert_file: "../deploy/certs/server.crt"
   key_file: "../deploy/certs/server.key"
   ca_file: "../deploy/certs/ca.crt"

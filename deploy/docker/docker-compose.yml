@@ -79,7 +79,7 @@ services:
     image: postgres:16-alpine
     container_name: edr-postgres
     ports:
-      - "5432:5432"
+      - "15432:5432"
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-edr}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-edr_dev_password}

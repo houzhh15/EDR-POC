@@ -91,7 +91,7 @@ func Default() *Config {
 			Name: "edr-agent",
 		},
 		Cloud: CloudConfig{
-			Endpoint: "localhost:8080",
+			Endpoint: "localhost:9000",
 			TLS: TLSConfig{
 				Enabled: false,
 				CACert:  "",

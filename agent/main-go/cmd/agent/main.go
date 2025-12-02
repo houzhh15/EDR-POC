@@ -124,6 +124,14 @@ func main() {
 		}
 	}()
 
+	// 启动心跳客户端
+	heartbeatClient := comm.NewHeartbeatClient(conn, comm.HeartbeatConfig{
+		AgentID:      cfg.Agent.ID,
+		AgentVersion: Version,
+		Interval:     30 * time.Second,
+	}, logger.WithModule("heartbeat"))
+	go heartbeatClient.Start(ctx)
+
 	// 创建事件客户端并启动批量发送
 	eventClient := comm.NewEventClient(conn, 100, 5*time.Second)
 	go eventClient.StartBatchSender(ctx, eventChan)

@@ -53,7 +53,7 @@ endif
 # ============================================================
 .PHONY: all build clean test lint fmt
 .PHONY: build-agent build-agent-c build-agent-go build-cloud build-console
-.PHONY: test-agent test-cloud test-console
+.PHONY: test-agent test-cloud test-cloud-unit test-cloud-integration test-console
 .PHONY: lint-c lint-go lint-ts
 .PHONY: dev-up dev-down dev-logs dev-ps dev-reset
 .PHONY: proto-gen license-check
@@ -147,6 +147,15 @@ test-agent:
 test-cloud:
 	@echo "🧪 运行 Cloud 测试..."
 	cd $(CLOUD_DIR) && $(GO) test -v ./...
+
+test-cloud-unit:
+	@echo "🧪 运行 Cloud 单元测试..."
+	cd $(CLOUD_DIR) && $(GO) test -v -short ./...
+
+test-cloud-integration:
+	@echo "🧪 运行 Cloud 集成测试..."
+	@echo "确保 PostgreSQL 和 Redis 服务正在运行..."
+	cd $(CLOUD_DIR) && $(GO) test -v -tags=integration ./tests/integration/...
 
 test-console:
 	@echo "🧪 运行 Console 测试..."
@@ -247,10 +256,12 @@ help:
 	@echo "  make clean          - 清理构建产物"
 	@echo ""
 	@echo "测试命令:"
-	@echo "  make test           - 运行所有测试"
-	@echo "  make test-agent     - 运行 Agent 测试"
-	@echo "  make test-cloud     - 运行 Cloud 测试"
-	@echo "  make test-console   - 运行 Console 测试"
+	@echo "  make test                   - 运行所有测试"
+	@echo "  make test-agent             - 运行 Agent 测试"
+	@echo "  make test-cloud             - 运行 Cloud 测试"
+	@echo "  make test-cloud-unit        - 运行 Cloud 单元测试 (不依赖外部服务)"
+	@echo "  make test-cloud-integration - 运行 Cloud 集成测试 (需要 PostgreSQL/Redis)"
+	@echo "  make test-console           - 运行 Console 测试"
 	@echo ""
 	@echo "代码检查:"
 	@echo "  make lint           - 运行所有代码检查"

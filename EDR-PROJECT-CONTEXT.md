@@ -179,6 +179,17 @@ EDR-POC/
 └── deploy/               # 部署配置
 ```
 
+**端口分配表**:
+
+| 端口 | 服务 | 说明 |
+|-----|------|------|
+| 15432 | PostgreSQL | 主数据库 |
+| 16379 | Redis | 缓存/状态存储 |
+| 9080 | API Gateway | Cloud REST API |
+| 9000 | ClickHouse | Native 接口 |
+| 8123 | ClickHouse | HTTP 接口 |
+| 9200 | OpenSearch | 事件检索 |
+
 ---
 
 ## 八、任务执行检查清单

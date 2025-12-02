@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/houzhh15/EDR-POC/cloud/internal/grpc/interceptors"
 	"github.com/houzhh15/EDR-POC/cloud/pkg/auth"
@@ -125,6 +126,9 @@ func NewServer(
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
 	healthServer.SetServingStatus("edr.v1.AgentService", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	// 注册 gRPC reflection 服务（用于调试和 grpcurl）
+	reflection.Register(grpcServer)
 
 	return &Server{
 		config:       config,
