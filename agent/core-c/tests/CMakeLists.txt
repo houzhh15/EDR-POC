@@ -25,6 +25,9 @@ if(TEST_SOURCES)
             ${CMAKE_SOURCE_DIR}/src/collector/windows
         )
         add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
+        
+        # 设置测试超时（秒）
+        set_tests_properties(${TEST_NAME} PROPERTIES TIMEOUT 30)
     endforeach()
 endif()
 
