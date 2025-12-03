@@ -202,7 +202,7 @@ func TestFlushEvents(t *testing.T) {
 	logger := zap.NewNop()
 	producer := &MockEventProducer{}
 
-	server := NewAgentServiceServer(logger, producer, nil, nil, nil, nil)
+	server := NewAgentServiceServer(logger, producer, nil, nil, nil, nil, nil)
 
 	events := []*pb.SecurityEvent{
 		{EventId: "event-1", EventType: "process_create", Timestamp: timestamppb.Now()},
@@ -238,7 +238,7 @@ func TestFlushEventsWithEmptyEvents(t *testing.T) {
 	logger := zap.NewNop()
 	producer := &MockEventProducer{}
 
-	server := NewAgentServiceServer(logger, producer, nil, nil, nil, nil)
+	server := NewAgentServiceServer(logger, producer, nil, nil, nil, nil, nil)
 
 	err := server.flushEvents(context.Background(), []*pb.SecurityEvent{})
 

@@ -104,7 +104,7 @@ func (s *AssetServiceIntegrationTestSuite) SetupSuite() {
 }
 
 // TearDownSuite 清理测试环境
-func (s *AgentAssetE2ETestSuite) TearDownSuite() {
+func (s *AssetServiceIntegrationTestSuite) TearDownSuite() {
 	if s.grpcConn != nil {
 		s.grpcConn.Close()
 	}
@@ -117,7 +117,7 @@ func (s *AgentAssetE2ETestSuite) TearDownSuite() {
 }
 
 // SetupTest 每个测试前清理数据
-func (s *AgentAssetE2ETestSuite) SetupTest() {
+func (s *AssetServiceIntegrationTestSuite) SetupTest() {
 	ctx := context.Background()
 	// 清理测试数据
 	keys, _ := s.redisClient.Keys(ctx, "agent:status:test-*").Result()
@@ -131,7 +131,7 @@ func (s *AgentAssetE2ETestSuite) SetupTest() {
 }
 
 // TestAgentHeartbeat_RegistersAsset 测试：Agent心跳注册资产
-func (s *AgentAssetE2ETestSuite) TestAgentHeartbeat_RegistersAsset() {
+func (s *AssetServiceIntegrationTestSuite) TestAgentHeartbeat_RegistersAsset() {
 	ctx := context.Background()
 	agentID := "test-agent-001"
 
@@ -165,7 +165,7 @@ func (s *AgentAssetE2ETestSuite) TestAgentHeartbeat_RegistersAsset() {
 }
 
 // TestAgentHeartbeat_UpdatesExistingAsset 测试：心跳更新已有资产信息
-func (s *AgentAssetE2ETestSuite) TestAgentHeartbeat_UpdatesExistingAsset() {
+func (s *AssetServiceIntegrationTestSuite) TestAgentHeartbeat_UpdatesExistingAsset() {
 	ctx := context.Background()
 	agentID := "test-agent-002"
 
@@ -197,7 +197,7 @@ func (s *AgentAssetE2ETestSuite) TestAgentHeartbeat_UpdatesExistingAsset() {
 }
 
 // TestMultipleAgents_OnlineCount 测试：多Agent在线统计
-func (s *AgentAssetE2ETestSuite) TestMultipleAgents_OnlineCount() {
+func (s *AssetServiceIntegrationTestSuite) TestMultipleAgents_OnlineCount() {
 	tenantID := "tenant-multi"
 
 	// 注册多个 Agent（直接通过 statusMgr 设置，因为 gRPC 不启用认证时 metadata 不会解析到 context）
@@ -221,13 +221,13 @@ func (s *AgentAssetE2ETestSuite) TestMultipleAgents_OnlineCount() {
 
 // TestAgentReportEvents_E2E 测试：Agent上报事件E2E流程
 // 注意：此测试需要 mTLS 认证，在无证书环境下跳过
-func (s *AgentAssetE2ETestSuite) TestAgentReportEvents_E2E() {
+func (s *AssetServiceIntegrationTestSuite) TestAgentReportEvents_E2E() {
 	// 流式 RPC 需要 mTLS 认证，当前测试环境无证书，跳过
 	s.T().Skip("跳过流式RPC测试（需要mTLS认证，将在任务45中通过完整E2E环境测试）")
 }
 
 // TestAgentOffline_TTLExpiry 测试：Agent离线检测（TTL过期）
-func (s *AgentAssetE2ETestSuite) TestAgentOffline_TTLExpiry() {
+func (s *AssetServiceIntegrationTestSuite) TestAgentOffline_TTLExpiry() {
 	ctx := context.Background()
 	agentID := "test-agent-ttl"
 
@@ -246,7 +246,7 @@ func (s *AgentAssetE2ETestSuite) TestAgentOffline_TTLExpiry() {
 }
 
 // TestConcurrentHeartbeats 测试：并发心跳处理
-func (s *AgentAssetE2ETestSuite) TestConcurrentHeartbeats() {
+func (s *AssetServiceIntegrationTestSuite) TestConcurrentHeartbeats() {
 	ctx := context.Background()
 	numAgents := 20
 	done := make(chan bool, numAgents)
@@ -312,5 +312,5 @@ func TestAgentAssetE2ESuite(t *testing.T) {
 	if testing.Short() {
 		t.Skip("跳过E2E测试（需要Redis）")
 	}
-	suite.Run(t, new(AgentAssetE2ETestSuite))
+	suite.Run(t, new(AssetServiceIntegrationTestSuite))
 }
