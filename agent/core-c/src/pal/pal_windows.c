@@ -66,10 +66,15 @@ static bool check_windows_version(void) {
         return false;
     }
 
-    RtlGetVersionPtr RtlGetVersion = (RtlGetVersionPtr)GetProcAddress(ntdll, "RtlGetVersion");
-    if (RtlGetVersion == NULL) {
+    /* 使用 FARPROC 避免函数指针类型转换警告 */
+    FARPROC proc = GetProcAddress(ntdll, "RtlGetVersion");
+    if (proc == NULL) {
         return false;
     }
+
+    /* 使用 memcpy 避免类型转换警告 */
+    RtlGetVersionPtr RtlGetVersion;
+    memcpy(&RtlGetVersion, &proc, sizeof(proc));
 
     RTL_OSVERSIONINFOW osvi;
     ZeroMemory(&osvi, sizeof(osvi));

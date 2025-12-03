@@ -47,6 +47,9 @@ typedef enum {
     EDR_ERR_PERMISSION = -6,       /**< 权限不足 */
     EDR_ERR_NOT_SUPPORTED = -7,    /**< 不支持 */
     EDR_ERR_TIMEOUT = -8,          /**< 超时 */
+    EDR_ERR_PLATFORM = -9,         /**< 平台错误 */
+    EDR_ERR_INVALID_STATE = -10,   /**< 无效状态 */
+    EDR_ERR_IO = -11,              /**< I/O错误 */
 } edr_error_t;
 
 /* ============================================================
