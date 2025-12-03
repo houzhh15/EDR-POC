@@ -105,36 +105,67 @@ func main() {
 	}
 	logger.Info("Collector started")
 
-	// 创建 gRPC 连接
-	conn := comm.NewConnection(comm.ConnConfig{
-		Endpoint:   cfg.Cloud.Endpoint,
-		TLSEnabled: cfg.Cloud.TLS.Enabled,
-		CACertPath: cfg.Cloud.TLS.CACert,
-		Timeout:    10 * time.Second,
-	})
-
-	// 后台重连
-	go func() {
-		if err := conn.ConnectWithRetry(ctx); err != nil {
-			if ctx.Err() == nil {
-				logger.Error("Failed to connect to cloud", zap.Error(err))
+	// 判断是否启用云端连接（独立模式 vs 云端模式）
+	standAloneMode := cfg.Cloud.Endpoint == ""
+	
+	var conn *comm.Connection // 声明在外层作用域以便 defer 使用
+	
+	if standAloneMode {
+		logger.Info("Running in standalone mode (no cloud connection)")
+		logger.Info("Events will be logged locally only")
+		
+		// 独立模式：只采集和记录日志，不连接云端
+		// 启动本地事件处理器
+		go func() {
+			for {
+				select {
+				case event := <-eventChan:
+					// 记录事件到日志（简化输出）
+					logger.Info("Event captured",
+						zap.Uint32("type", event.Type),
+						zap.Int64("timestamp", event.Timestamp),
+						zap.String("data", string(event.Data)),
+					)
+				case <-ctx.Done():
+					return
+				}
 			}
-		} else {
-			logger.Info("Connected to cloud", zap.String("endpoint", cfg.Cloud.Endpoint))
-		}
-	}()
+		}()
+	} else {
+		// 云端模式：连接到云端服务
+		logger.Info("Running in cloud mode", zap.String("endpoint", cfg.Cloud.Endpoint))
+		
+		// 创建 gRPC 连接
+		conn = comm.NewConnection(comm.ConnConfig{
+			Endpoint:   cfg.Cloud.Endpoint,
+			TLSEnabled: cfg.Cloud.TLS.Enabled,
+			CACertPath: cfg.Cloud.TLS.CACert,
+			Timeout:    10 * time.Second,
+		})
 
-	// 启动心跳客户端
-	heartbeatClient := comm.NewHeartbeatClient(conn, comm.HeartbeatConfig{
-		AgentID:      cfg.Agent.ID,
-		AgentVersion: Version,
-		Interval:     30 * time.Second,
-	}, logger.WithModule("heartbeat"))
-	go heartbeatClient.Start(ctx)
+		// 后台重连
+		go func() {
+			if err := conn.ConnectWithRetry(ctx); err != nil {
+				if ctx.Err() == nil {
+					logger.Error("Failed to connect to cloud", zap.Error(err))
+				}
+			} else {
+				logger.Info("Connected to cloud", zap.String("endpoint", cfg.Cloud.Endpoint))
+			}
+		}()
 
-	// 创建事件客户端并启动批量发送
-	eventClient := comm.NewEventClient(conn, 100, 5*time.Second)
-	go eventClient.StartBatchSender(ctx, eventChan)
+		// 启动心跳客户端
+		heartbeatClient := comm.NewHeartbeatClient(conn, comm.HeartbeatConfig{
+			AgentID:      cfg.Agent.ID,
+			AgentVersion: Version,
+			Interval:     30 * time.Second,
+		}, logger.WithModule("heartbeat"))
+		go heartbeatClient.Start(ctx)
+
+		// 创建事件客户端并启动批量发送
+		eventClient := comm.NewEventClient(conn, 100, 5*time.Second)
+		go eventClient.StartBatchSender(ctx, eventChan)
+	}
 
 	// 等待退出
 	<-ctx.Done()
@@ -147,9 +178,11 @@ func main() {
 		logger.Error("Failed to stop collector", zap.Error(err))
 	}
 
-	// 关闭连接
-	if err := conn.Close(); err != nil {
-		logger.Error("Failed to close connection", zap.Error(err))
+	// 关闭云端连接（如果存在）
+	if conn != nil {
+		if err := conn.Close(); err != nil {
+			logger.Error("Failed to close connection", zap.Error(err))
+		}
 	}
 
 	logger.Info("EDR Agent stopped")

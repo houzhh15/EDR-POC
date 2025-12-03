@@ -46,11 +46,10 @@ type LogConfig struct {
 
 // Validate 验证配置的有效性
 func (c *Config) Validate() error {
-	// 检查云端地址
-	if c.Cloud.Endpoint == "" {
-		return errors.New("cloud.endpoint is required")
-	}
-
+	// 云端地址检查（可选，用于独立测试模式）
+	// 如果配置了 cloud.endpoint，则验证其格式
+	// 如果未配置，Agent 将以独立模式运行（仅采集和本地日志）
+	
 	// 检查缓冲区大小
 	if c.Collector.BufferSize <= 0 {
 		return errors.New("collector.buffer_size must be greater than 0")
