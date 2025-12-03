@@ -142,7 +142,11 @@ test: test-agent test-cloud test-console
 test-agent:
 	@echo "🧪 运行 Agent 测试..."
 	@if [ -d "$(AGENT_C_DIR)/build" ]; then \
-		cd $(AGENT_C_DIR)/build && ctest --output-on-failure || true; \
+		if [ "$(PLATFORM)" = "windows" ]; then \
+			echo "⚠️  跳过 Windows C 测试 (ETW 测试需要管理员权限)"; \
+		else \
+			cd $(AGENT_C_DIR)/build && ctest --output-on-failure || true; \
+		fi \
 	fi
 	cd $(AGENT_GO_DIR) && $(GO) test -v ./...
 

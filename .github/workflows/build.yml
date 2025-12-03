@@ -99,8 +99,9 @@ jobs:
             echo "⚠️  Running tests on ${{ matrix.platform }} (PAL and CGO tests expected to fail)"
             make test || true
           elif [ "${{ matrix.platform }}" == "windows" ]; then
-            echo "🔍 Running tests on Windows (ETW tests may require elevated privileges)"
-            timeout 300 make test || echo "⚠️  Tests timed out or failed - continuing build"
+            echo "⚠️  Skipping C tests on Windows (ETW tests require Administrator privileges)"
+            echo "🧪 Running Go tests only..."
+            cd cloud && go test -v ./... || true
           else
             make test
           fi
