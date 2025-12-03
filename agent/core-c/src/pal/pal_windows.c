@@ -63,12 +63,14 @@ static bool check_windows_version(void) {
     
     HMODULE ntdll = GetModuleHandleA("ntdll.dll");
     if (ntdll == NULL) {
+        fprintf(stderr, "ERROR: Failed to get ntdll.dll handle\n");
         return false;
     }
 
     /* 使用 FARPROC 避免函数指针类型转换警告 */
     FARPROC proc = GetProcAddress(ntdll, "RtlGetVersion");
     if (proc == NULL) {
+        fprintf(stderr, "ERROR: Failed to get RtlGetVersion from ntdll.dll\n");
         return false;
     }
 
@@ -82,8 +84,12 @@ static bool check_windows_version(void) {
 
     LONG status = RtlGetVersion(&osvi);
     if (status != 0) {
+        fprintf(stderr, "ERROR: RtlGetVersion failed with status: %ld\n", status);
         return false;
     }
+
+    fprintf(stderr, "DEBUG: Windows version detected: %lu.%lu (Build %lu)\n",
+            osvi.dwMajorVersion, osvi.dwMinorVersion, osvi.dwBuildNumber);
 
     /* Windows 10 的版本号是 10.0 */
     if (osvi.dwMajorVersion < 10) {
@@ -92,6 +98,7 @@ static bool check_windows_version(void) {
         return false;
     }
 
+    fprintf(stderr, "INFO: Windows version check passed\n");
     return true;
 }
 
@@ -100,6 +107,8 @@ static bool check_windows_version(void) {
  * ============================================================ */
 
 edr_error_t pal_init(void) {
+    fprintf(stderr, "DEBUG: Starting PAL initialization...\n");
+    
     /* 检查重复初始化 */
     if (g_pal_initialized) {
         fprintf(stderr, "ERROR: PAL already initialized\n");
@@ -107,12 +116,14 @@ edr_error_t pal_init(void) {
     }
 
     /* 检查Windows版本 */
+    fprintf(stderr, "DEBUG: Checking Windows version...\n");
     if (!check_windows_version()) {
         fprintf(stderr, "ERROR: Windows version check failed\n");
         return EDR_ERR_NOT_SUPPORTED;
     }
 
     /* 初始化高精度计数器频率 */
+    fprintf(stderr, "DEBUG: Initializing QueryPerformanceFrequency...\n");
     if (!QueryPerformanceFrequency(&g_qpc_frequency)) {
         DWORD error_code = GetLastError();
         char error_msg[256];
@@ -131,8 +142,11 @@ edr_error_t pal_init(void) {
         return EDR_ERR_PLATFORM;
     }
 
+    fprintf(stderr, "DEBUG: QPC frequency: %lld Hz\n", g_qpc_frequency.QuadPart);
+
     /* 设置初始化标志 */
     g_pal_initialized = true;
+    fprintf(stderr, "INFO: PAL initialization completed successfully\n");
 
     printf("INFO: PAL initialized successfully (QPC frequency: %lld Hz)\n", g_qpc_frequency.QuadPart);
     return EDR_OK;
