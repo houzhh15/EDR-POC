@@ -3,6 +3,7 @@ package log
 
 import (
 	"os"
+	"path/filepath"
 	"sync"
 
 	"go.uber.org/zap"
@@ -99,6 +100,15 @@ func NewLogger(cfg LogConfig) (*Logger, error) {
 
 // createFileWriter 创建文件输出器（支持日志轮转）
 func createFileWriter(cfg LogConfig) zapcore.WriteSyncer {
+	// 确保日志目录存在
+	if dir := filepath.Dir(cfg.FilePath); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			// 如果创建目录失败，输出错误到 stderr 但不中断程序
+			// lumberjack 会在写入时再次尝试
+			_, _ = os.Stderr.WriteString("Warning: failed to create log directory: " + err.Error() + "\n")
+		}
+	}
+	
 	return zapcore.AddSync(&lumberjack.Logger{
 		Filename:   cfg.FilePath,
 		MaxSize:    cfg.MaxSizeMB,

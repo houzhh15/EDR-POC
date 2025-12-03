@@ -186,6 +186,7 @@ EDR-POC/
 | 15432 | PostgreSQL | 主数据库 |
 | 16379 | Redis | 缓存/状态存储 |
 | 9080 | API Gateway | Cloud REST API |
+| 9090 | Grpc | Cloud Grpc API|
 | 9000 | ClickHouse | Native 接口 |
 | 8123 | ClickHouse | HTTP 接口 |
 | 9200 | OpenSearch | 事件检索 |

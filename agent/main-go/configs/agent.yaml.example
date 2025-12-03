@@ -44,7 +44,7 @@ log:
 
 cloud:
   endpoint: ""                   # Cloud 服务地址（留空=独立模式）
-                                 # 示例：grpc://localhost:9000
+                                 # 示例：grpc://localhost:9090
   tls:
     enabled: false               # 是否启用 TLS
     ca_cert: ""                  # CA 证书路径（TLS 启用时必填）
@@ -59,7 +59,7 @@ cloud:
 #
 # 2. 云端模式（连接本地 Cloud 服务）：
 #    cloud:
-#      endpoint: "grpc://localhost:9000"
+#      endpoint: "grpc://localhost:9090"
 #      tls:
 #        enabled: false
 #

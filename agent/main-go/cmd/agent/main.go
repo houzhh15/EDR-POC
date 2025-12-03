@@ -50,6 +50,10 @@ func main() {
 	cfg, err := config.LoadAndValidate(*configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nPlease check:\n")
+		fmt.Fprintf(os.Stderr, "  - Config file exists: %s\n", *configPath)
+		fmt.Fprintf(os.Stderr, "  - Config file is valid YAML format\n")
+		fmt.Fprintf(os.Stderr, "  - All required fields are present\n")
 		os.Exit(1)
 	}
 
@@ -62,6 +66,9 @@ func main() {
 		MaxBackups: cfg.Log.MaxBackups,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nPlease check:\n")
+		fmt.Fprintf(os.Stderr, "  - Log directory is writable\n")
+		fmt.Fprintf(os.Stderr, "  - Log file path: %s\n", cfg.Log.FilePath)
 		os.Exit(1)
 	}
 
@@ -71,16 +78,30 @@ func main() {
 	logger.Info("EDR Agent starting",
 		zap.String("version", Version),
 		zap.String("commit", GitCommit),
-		zap.String("core_version", cgo.Version()),
+		zap.String("config_path", *configPath),
+	)
+
+	// 打印配置摘要
+	logger.Info("Configuration loaded",
+		zap.String("agent.id", cfg.Agent.ID),
+		zap.String("log.level", cfg.Log.Level),
+		zap.String("log.output", cfg.Log.Output),
+		zap.String("log.file", cfg.Log.FilePath),
+		zap.String("cloud.endpoint", cfg.Cloud.Endpoint),
+		zap.Int("collector.buffer_size", cfg.Collector.BufferSize),
 	)
 
 	// 初始化 C 核心库
+	logger.Info("Initializing C core library...")
 	if err := cgo.Init(); err != nil {
-		logger.Fatal("Failed to initialize core library", zap.Error(err))
+		logger.Fatal("Failed to initialize core library", 
+			zap.Error(err),
+			zap.String("hint", "Please ensure libedr_core.dll is in the same directory or in PATH"),
+		)
 	}
 	defer cgo.Cleanup()
 
-	logger.Info("Core library initialized")
+	logger.Info("Core library initialized", zap.String("core_version", cgo.Version()))
 
 	// 创建上下文，监听退出信号
 	ctx, cancel := context.WithCancel(context.Background())
