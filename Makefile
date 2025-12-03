@@ -108,6 +108,8 @@ build-agent-go: build-agent-c
 	@echo "📦 构建 Agent Go 主程序..."
 	@mkdir -p $(BIN_DIR)
 	cd $(AGENT_GO_DIR) && CGO_ENABLED=1 $(GO) build $(LDFLAGS) -o ../../$(BIN_DIR)/edr-agent ./cmd/agent
+	@echo "📋 复制 C 核心库到输出目录..."
+	@cp $(AGENT_C_DIR)/build/libedr_core$(LIB_EXT) $(BIN_DIR)/ 2>/dev/null || echo "⚠️  未找到 C 核心库"
 	@echo "✅ Agent 构建完成: $(BIN_DIR)/edr-agent"
 
 # ============================================================
