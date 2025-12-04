@@ -1,0 +1,105 @@
+{
+  "index_patterns": ["edr-assets"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "asset_id": { "type": "keyword" },
+        "hostname": { "type": "keyword" },
+        "display_name": { "type": "keyword" },
+        "ip_addresses": { "type": "ip" },
+        "mac_addresses": { "type": "keyword" },
+        "os": {
+          "properties": {
+            "family": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "version": { "type": "keyword" },
+            "kernel": { "type": "keyword" },
+            "platform": { "type": "keyword" },
+            "build": { "type": "keyword" }
+          }
+        },
+        "hardware": {
+          "properties": {
+            "cpu_count": { "type": "integer" },
+            "cpu_model": { "type": "keyword" },
+            "memory_total": { "type": "long" },
+            "disk_total": { "type": "long" },
+            "architecture": { "type": "keyword" }
+          }
+        },
+        "agent": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "version": { "type": "keyword" },
+            "status": { "type": "keyword" },
+            "last_checkin": { "type": "date" },
+            "policy_id": { "type": "keyword" },
+            "policy_revision": { "type": "integer" }
+          }
+        },
+        "network": {
+          "properties": {
+            "domain": { "type": "keyword" },
+            "workgroup": { "type": "keyword" },
+            "interfaces": {
+              "type": "nested",
+              "properties": {
+                "name": { "type": "keyword" },
+                "ip": { "type": "ip" },
+                "mac": { "type": "keyword" },
+                "type": { "type": "keyword" }
+              }
+            }
+          }
+        },
+        "location": {
+          "properties": {
+            "site": { "type": "keyword" },
+            "building": { "type": "keyword" },
+            "floor": { "type": "keyword" },
+            "country": { "type": "keyword" },
+            "city": { "type": "keyword" },
+            "geo": { "type": "geo_point" }
+          }
+        },
+        "organization": {
+          "properties": {
+            "department": { "type": "keyword" },
+            "business_unit": { "type": "keyword" },
+            "cost_center": { "type": "keyword" }
+          }
+        },
+        "owner": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "email": { "type": "keyword" }
+          }
+        },
+        "tags": { "type": "keyword" },
+        "labels": { 
+          "type": "object",
+          "dynamic": true
+        },
+        "criticality": { "type": "keyword" },
+        "risk_score": { "type": "float" },
+        "compliance_status": { "type": "keyword" },
+        "first_seen": { "type": "date" },
+        "last_seen": { "type": "date" },
+        "created_at": { "type": "date" },
+        "updated_at": { "type": "date" }
+      }
+    }
+  },
+  "_meta": {
+    "description": "EDR assets index template",
+    "version": "1.0.0"
+  }
+}

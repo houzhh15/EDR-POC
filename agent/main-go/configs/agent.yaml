@@ -4,23 +4,56 @@
 agent:
   id: "test-agent-001"            # Agent 唯一标识
   name: "edr-agent"               # Agent 名称
+  version: "1.0.0"                # Agent 版本
 
 cloud:
-  endpoint: "localhost:9090"      # 云端 gRPC 服务器地址
+  endpoint: ""                    # 云端 gRPC 服务器地址（留空=独立模式）
   tls:
     enabled: false                # 是否启用 TLS
     ca_cert: ""                   # CA 证书路径
+    client_cert: ""               # 客户端证书路径（mTLS）
+    client_key: ""                # 客户端私钥路径（mTLS）
+  compression:
+    enabled: true                 # 是否启用压缩
+    type: "gzip"                  # 压缩类型: gzip, zstd
+  connection:
+    dial_timeout: "10s"           # 连接超时
+    keepalive_time: "30s"         # Keepalive 间隔
+    keepalive_timeout: "10s"      # Keepalive 超时
+    backoff_max_delay: "60s"      # 最大重连延迟
+
+heartbeat:
+  interval: "30s"                 # 心跳间隔（初始值）
+  min_interval: "10s"             # 最小心跳间隔
+  max_interval: "120s"            # 最大心跳间隔
+  retry_interval: "5s"            # 重试间隔
+  max_failure_count: 3            # 最大连续失败次数
+
+event_client:
+  batch_size: 100                 # 批量大小
+  flush_interval: "5s"            # 刷新间隔
+  max_pending: 10000              # 最大待发送事件数
+
+policy:
+  sync_interval: "5m"             # 策略同步间隔
+  retry_interval: "30s"           # 重试间隔
+  max_retries: 3                  # 最大重试次数
+  checksum_enabled: true          # 是否启用校验和验证
+  store_path: "data/policies"     # 策略本地存储路径
+
+command:
+  default_timeout: "60s"          # 默认命令超时
+  max_concurrent: 5               # 最大并发命令数
+  reconnect_delay: "5s"           # 重连延迟
 
 collector:
   enabled_types:                  # 启用的采集类型
     - process                     # 进程事件
-    - file                        # 文件事件
-    - network                     # 网络事件
-  buffer_size: 10000              # 事件缓冲区大小
+  buffer_size: 4096               # 事件缓冲区大小
 
 log:
-  level: "debug"                  # 日志级别: debug, info, warn, error
+  level: "info"                   # 日志级别: debug, info, warn, error
   output: "console"               # 输出方式: console, file, both
-  file_path: "./logs/agent.log"   # 本地开发使用相对路径
+  file_path: "logs/agent.log"     # 日志文件路径
   max_size_mb: 100                # 单文件最大大小(MB)
-  max_backups: 5                  # 最大保留文件数
+  max_backups: 3                  # 最大保留文件数

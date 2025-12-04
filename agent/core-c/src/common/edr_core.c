@@ -250,6 +250,7 @@ void* edr_core_get_event_queue(void) {
 typedef struct {
     etw_session_t* session;
     etw_process_consumer_t* consumer;
+    event_buffer_t* event_buffer;  /* 进程事件专用缓冲区 */
 } edr_collector_session_t;
 
 /**
@@ -267,21 +268,23 @@ int edr_start_process_collector(void** out_handle) {
         return EDR_ERR_INVALID_PARAM;
     }
     
-    // 获取全局事件队列
-    event_buffer_t* queue = (event_buffer_t*)edr_core_get_event_queue();
-    if (queue == NULL) {
-        return EDR_ERR_NOT_INITIALIZED;
-    }
-    
     // 分配Session结构
     edr_collector_session_t* session = (edr_collector_session_t*)calloc(1, sizeof(edr_collector_session_t));
     if (session == NULL) {
         return EDR_ERR_NO_MEMORY;
     }
     
-    // 创建进程事件消费者
-    session->consumer = etw_process_consumer_create(queue);
+    // 创建进程事件专用缓冲区
+    session->event_buffer = event_buffer_create();
+    if (session->event_buffer == NULL) {
+        free(session);
+        return EDR_ERR_NO_MEMORY;
+    }
+    
+    // 创建进程事件消费者(使用Session专属的event_buffer)
+    session->consumer = etw_process_consumer_create(session->event_buffer);
     if (session->consumer == NULL) {
+        event_buffer_destroy(session->event_buffer);
         free(session);
         return EDR_ERR_NO_MEMORY;
     }
@@ -290,6 +293,7 @@ int edr_start_process_collector(void** out_handle) {
     session->session = etw_session_init(ETW_SESSION_NAME);
     if (session->session == NULL) {
         etw_process_consumer_destroy(session->consumer);
+        event_buffer_destroy(session->event_buffer);
         free(session);
         return EDR_ERR_NO_MEMORY;
     }
@@ -304,6 +308,7 @@ int edr_start_process_collector(void** out_handle) {
     if (result != EDR_SUCCESS) {
         etw_session_destroy(session->session);
         etw_process_consumer_destroy(session->consumer);
+        event_buffer_destroy(session->event_buffer);
         free(session);
         return result;
     }
@@ -337,6 +342,11 @@ int edr_stop_process_collector(void* handle) {
         etw_process_consumer_destroy(session->consumer);
     }
     
+    // 销毁事件缓冲区
+    if (session->event_buffer != NULL) {
+        event_buffer_destroy(session->event_buffer);
+    }
+    
     free(session);
     
     return EDR_SUCCESS;
@@ -366,13 +376,13 @@ int edr_poll_process_events(
         return EDR_SUCCESS;
     }
     
-    // 从全局队列批量pop事件
-    event_buffer_t* queue = (event_buffer_t*)edr_core_get_event_queue();
-    if (queue == NULL) {
+    // 从Session的事件缓冲区批量pop事件
+    edr_collector_session_t* session = (edr_collector_session_t*)handle;
+    if (session->event_buffer == NULL) {
         return EDR_ERR_NOT_INITIALIZED;
     }
     
-    int count = event_buffer_pop_batch(queue, events, max_count);
+    int count = event_buffer_pop_batch(session->event_buffer, events, max_count);
     *out_count = count;
     
     return EDR_SUCCESS;

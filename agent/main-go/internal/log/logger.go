@@ -108,7 +108,7 @@ func createFileWriter(cfg LogConfig) zapcore.WriteSyncer {
 			_, _ = os.Stderr.WriteString("Warning: failed to create log directory: " + err.Error() + "\n")
 		}
 	}
-	
+
 	return zapcore.AddSync(&lumberjack.Logger{
 		Filename:   cfg.FilePath,
 		MaxSize:    cfg.MaxSizeMB,

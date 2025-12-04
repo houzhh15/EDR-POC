@@ -1,0 +1,120 @@
+{
+  "index_patterns": ["edr-alerts-*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "refresh_interval": "1s"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "alert": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "description": { "type": "text" },
+            "severity": { "type": "keyword" },
+            "status": { "type": "keyword" },
+            "rule_id": { "type": "keyword" },
+            "rule_name": { "type": "keyword" },
+            "rule_category": { "type": "keyword" },
+            "confidence": { "type": "float" },
+            "risk_score": { "type": "float" },
+            "created_at": { "type": "date" },
+            "updated_at": { "type": "date" },
+            "acknowledged_at": { "type": "date" },
+            "resolved_at": { "type": "date" },
+            "mitre": {
+              "properties": {
+                "technique_id": { "type": "keyword" },
+                "technique_name": { "type": "keyword" },
+                "tactic": { "type": "keyword" }
+              }
+            }
+          }
+        },
+        "event": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "ids": { "type": "keyword" },
+            "category": { "type": "keyword" },
+            "type": { "type": "keyword" }
+          }
+        },
+        "host": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "hostname": { "type": "keyword" },
+            "ip": { "type": "ip" },
+            "os": {
+              "properties": {
+                "family": { "type": "keyword" },
+                "name": { "type": "keyword" }
+              }
+            }
+          }
+        },
+        "process": {
+          "properties": {
+            "pid": { "type": "long" },
+            "name": { "type": "keyword" },
+            "executable": { "type": "keyword" },
+            "command_line": { "type": "text" }
+          }
+        },
+        "file": {
+          "properties": {
+            "path": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "hash": {
+              "properties": {
+                "md5": { "type": "keyword" },
+                "sha256": { "type": "keyword" }
+              }
+            }
+          }
+        },
+        "user": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "name": { "type": "keyword" }
+          }
+        },
+        "agent": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "version": { "type": "keyword" }
+          }
+        },
+        "assignee": { "type": "keyword" },
+        "tags": { "type": "keyword" },
+        "notes": {
+          "type": "nested",
+          "properties": {
+            "author": { "type": "keyword" },
+            "content": { "type": "text" },
+            "created_at": { "type": "date" }
+          }
+        },
+        "related": {
+          "properties": {
+            "alerts": { "type": "keyword" },
+            "events": { "type": "keyword" },
+            "hosts": { "type": "keyword" },
+            "users": { "type": "keyword" }
+          }
+        }
+      }
+    }
+  },
+  "_meta": {
+    "description": "EDR alerts index template",
+    "version": "1.0.0"
+  }
+}

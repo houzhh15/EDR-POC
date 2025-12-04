@@ -1,0 +1,76 @@
+# Kafka/Redpanda 消息队列配置
+# 文档: docs/architecture/kafka-design.md
+
+kafka:
+  # Broker 连接列表
+  brokers:
+    - "localhost:19092"
+  
+  # 生产者配置
+  producer:
+    batch_size: 100              # 每批消息数量
+    batch_timeout: 5s            # 批次超时时间
+    max_retries: 3               # 最大重试次数
+    required_acks: all           # ACK策略: all, one, none
+    compression: snappy          # 压缩算法: none, gzip, snappy, lz4, zstd
+    max_message_bytes: 1048576   # 单条消息最大字节数 (1MB)
+    retry_backoff: 100ms         # 重试退避基础时间
+  
+  # 消费者配置
+  consumer:
+    min_bytes: 1024              # 最小拉取字节数 (1KB)
+    max_bytes: 10485760          # 最大拉取字节数 (10MB)
+    max_wait: 500ms              # 最大等待时间
+    commit_interval: 1s          # 自动提交间隔
+    start_offset: latest         # 起始偏移量: earliest, latest
+    session_timeout: 30s         # 消费者组会话超时
+    heartbeat_interval: 3s       # 心跳间隔
+  
+  # Topic 配置
+  topics:
+    events_raw:
+      name: "edr.events.raw"
+      partitions: 12
+      replication_factor: 1      # 开发环境单副本
+      retention_ms: 604800000    # 7天
+      cleanup_policy: delete
+    
+    events_normalized:
+      name: "edr.events.normalized"
+      partitions: 12
+      replication_factor: 1
+      retention_ms: 604800000    # 7天
+      cleanup_policy: delete
+    
+    alerts:
+      name: "edr.alerts"
+      partitions: 6
+      replication_factor: 1
+      retention_ms: 2592000000   # 30天
+      cleanup_policy: delete
+    
+    commands:
+      name: "edr.commands"
+      partitions: 6
+      replication_factor: 1
+      retention_ms: 86400000     # 1天
+      cleanup_policy: delete
+    
+    dlq:
+      name: "edr.dlq"
+      partitions: 3
+      replication_factor: 1
+      retention_ms: 2592000000   # 30天
+      cleanup_policy: delete
+  
+  # 死信队列配置
+  dlq:
+    enabled: true
+    topic: "edr.dlq"
+    max_retries: 3
+    retry_backoff: 1s
+  
+  # 健康检查配置
+  health:
+    check_interval: 30s
+    timeout: 5s

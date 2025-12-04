@@ -1,0 +1,216 @@
+{
+  "index_patterns": ["edr-events-*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "refresh_interval": "5s",
+      "index.mapping.total_fields.limit": 2000,
+      "index.translog.durability": "request",
+      "index.translog.sync_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "_source": {
+        "enabled": true
+      },
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "event": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "category": { "type": "keyword" },
+            "type": { "type": "keyword" },
+            "action": { "type": "keyword" },
+            "outcome": { "type": "keyword" },
+            "severity": { "type": "integer" },
+            "duration": { "type": "long" },
+            "created": { "type": "date" },
+            "ingested": { "type": "date" },
+            "original": { "type": "keyword", "index": false }
+          }
+        },
+        "host": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "hostname": { "type": "keyword" },
+            "ip": { "type": "ip" },
+            "mac": { "type": "keyword" },
+            "os": {
+              "properties": {
+                "family": { "type": "keyword" },
+                "name": { "type": "keyword" },
+                "version": { "type": "keyword" },
+                "kernel": { "type": "keyword" },
+                "platform": { "type": "keyword" }
+              }
+            },
+            "architecture": { "type": "keyword" },
+            "uptime": { "type": "long" }
+          }
+        },
+        "process": {
+          "properties": {
+            "pid": { "type": "long" },
+            "name": { "type": "keyword" },
+            "executable": { "type": "keyword" },
+            "command_line": { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 1024 } } },
+            "args": { "type": "keyword" },
+            "args_count": { "type": "integer" },
+            "working_directory": { "type": "keyword" },
+            "start": { "type": "date" },
+            "end": { "type": "date" },
+            "exit_code": { "type": "integer" },
+            "hash": {
+              "properties": {
+                "md5": { "type": "keyword" },
+                "sha1": { "type": "keyword" },
+                "sha256": { "type": "keyword" },
+                "sha512": { "type": "keyword" }
+              }
+            },
+            "parent": {
+              "properties": {
+                "pid": { "type": "long" },
+                "name": { "type": "keyword" },
+                "executable": { "type": "keyword" },
+                "command_line": { "type": "text" }
+              }
+            },
+            "user": {
+              "properties": {
+                "id": { "type": "keyword" },
+                "name": { "type": "keyword" }
+              }
+            }
+          }
+        },
+        "file": {
+          "properties": {
+            "path": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "extension": { "type": "keyword" },
+            "directory": { "type": "keyword" },
+            "size": { "type": "long" },
+            "type": { "type": "keyword" },
+            "created": { "type": "date" },
+            "accessed": { "type": "date" },
+            "mtime": { "type": "date" },
+            "ctime": { "type": "date" },
+            "owner": { "type": "keyword" },
+            "group": { "type": "keyword" },
+            "mode": { "type": "keyword" },
+            "hash": {
+              "properties": {
+                "md5": { "type": "keyword" },
+                "sha1": { "type": "keyword" },
+                "sha256": { "type": "keyword" }
+              }
+            }
+          }
+        },
+        "network": {
+          "properties": {
+            "direction": { "type": "keyword" },
+            "protocol": { "type": "keyword" },
+            "transport": { "type": "keyword" },
+            "application": { "type": "keyword" },
+            "bytes": { "type": "long" },
+            "packets": { "type": "long" }
+          }
+        },
+        "source": {
+          "properties": {
+            "ip": { "type": "ip" },
+            "port": { "type": "integer" },
+            "domain": { "type": "keyword" },
+            "bytes": { "type": "long" },
+            "packets": { "type": "long" }
+          }
+        },
+        "destination": {
+          "properties": {
+            "ip": { "type": "ip" },
+            "port": { "type": "integer" },
+            "domain": { "type": "keyword" },
+            "bytes": { "type": "long" },
+            "packets": { "type": "long" }
+          }
+        },
+        "dns": {
+          "properties": {
+            "question": {
+              "properties": {
+                "name": { "type": "keyword" },
+                "type": { "type": "keyword" }
+              }
+            },
+            "answers": {
+              "properties": {
+                "name": { "type": "keyword" },
+                "type": { "type": "keyword" },
+                "data": { "type": "keyword" },
+                "ttl": { "type": "long" }
+              }
+            },
+            "response_code": { "type": "keyword" }
+          }
+        },
+        "registry": {
+          "properties": {
+            "hive": { "type": "keyword" },
+            "key": { "type": "keyword" },
+            "path": { "type": "keyword" },
+            "value": { "type": "keyword" },
+            "data": {
+              "properties": {
+                "strings": { "type": "keyword" },
+                "type": { "type": "keyword" }
+              }
+            }
+          }
+        },
+        "user": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "domain": { "type": "keyword" },
+            "email": { "type": "keyword" }
+          }
+        },
+        "agent": {
+          "properties": {
+            "id": { "type": "keyword" },
+            "name": { "type": "keyword" },
+            "version": { "type": "keyword" },
+            "type": { "type": "keyword" }
+          }
+        },
+        "ecs": {
+          "properties": {
+            "version": { "type": "keyword" }
+          }
+        },
+        "labels": {
+          "type": "object",
+          "dynamic": true
+        },
+        "tags": {
+          "type": "keyword"
+        },
+        "message": {
+          "type": "text"
+        }
+      }
+    },
+    "aliases": {}
+  },
+  "_meta": {
+    "description": "EDR events index template - ECS 8.11.0 compatible",
+    "version": "1.0.0"
+  }
+}

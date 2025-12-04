@@ -1,0 +1,95 @@
+{
+  "policy": {
+    "description": "EDR events lifecycle policy - manages data through hot, warm, cold, and delete phases",
+    "default_state": "hot",
+    "states": [
+      {
+        "name": "hot",
+        "actions": [
+          {
+            "rollover": {
+              "min_doc_count": 50000000,
+              "min_size": "50gb",
+              "min_index_age": "1d"
+            }
+          }
+        ],
+        "transitions": [
+          {
+            "state_name": "warm",
+            "conditions": {
+              "min_index_age": "7d"
+            }
+          }
+        ]
+      },
+      {
+        "name": "warm",
+        "actions": [
+          {
+            "read_only": {}
+          },
+          {
+            "force_merge": {
+              "max_num_segments": 1
+            }
+          },
+          {
+            "index_priority": {
+              "priority": 50
+            }
+          }
+        ],
+        "transitions": [
+          {
+            "state_name": "cold",
+            "conditions": {
+              "min_index_age": "30d"
+            }
+          }
+        ]
+      },
+      {
+        "name": "cold",
+        "actions": [
+          {
+            "read_only": {}
+          },
+          {
+            "replica_count": {
+              "number_of_replicas": 0
+            }
+          },
+          {
+            "index_priority": {
+              "priority": 0
+            }
+          }
+        ],
+        "transitions": [
+          {
+            "state_name": "delete",
+            "conditions": {
+              "min_index_age": "90d"
+            }
+          }
+        ]
+      },
+      {
+        "name": "delete",
+        "actions": [
+          {
+            "delete": {}
+          }
+        ],
+        "transitions": []
+      }
+    ],
+    "ism_template": [
+      {
+        "index_patterns": ["edr-events-*"],
+        "priority": 100
+      }
+    ]
+  }
+}

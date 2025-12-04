@@ -32,11 +32,24 @@ var (
 
 // 命令行参数
 var (
-	configPath = flag.String("config", "/etc/edr/agent.yaml", "配置文件路径")
+	configPath = flag.String("config", "configs/agent.yaml", "配置文件路径")
 	showVer    = flag.Bool("version", false, "显示版本信息")
 )
 
 func main() {
+	// 捕获 panic 并输出详细错误
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "\n========================================\n")
+			fmt.Fprintf(os.Stderr, "FATAL ERROR: Agent crashed\n")
+			fmt.Fprintf(os.Stderr, "========================================\n")
+			fmt.Fprintf(os.Stderr, "Panic: %v\n", r)
+			fmt.Fprintf(os.Stderr, "\nThis is an unexpected error. Please report this issue.\n")
+			fmt.Fprintf(os.Stderr, "GitHub: https://github.com/houzhh15/EDR-POC/issues\n")
+			os.Exit(2)
+		}
+	}()
+
 	flag.Parse()
 
 	// 显示版本
@@ -44,6 +57,16 @@ func main() {
 		fmt.Printf("EDR Agent %s (commit: %s, built: %s)\n", Version, GitCommit, BuildTime)
 		fmt.Printf("Core Library: %s\n", cgo.Version())
 		os.Exit(0)
+	}
+
+	// 检查配置文件是否存在
+	if _, err := os.Stat(*configPath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Error: Config file not found: %s\n", *configPath)
+		fmt.Fprintf(os.Stderr, "\nPlease create a config file. Example:\n")
+		fmt.Fprintf(os.Stderr, "  cp agent.yaml.example %s\n", *configPath)
+		fmt.Fprintf(os.Stderr, "\nOr specify a different config file:\n")
+		fmt.Fprintf(os.Stderr, "  %s --config path/to/config.yaml\n", os.Args[0])
+		os.Exit(1)
 	}
 
 	// 加载配置
@@ -94,7 +117,7 @@ func main() {
 	// 初始化 C 核心库
 	logger.Info("Initializing C core library...")
 	if err := cgo.Init(); err != nil {
-		logger.Fatal("Failed to initialize core library", 
+		logger.Fatal("Failed to initialize core library",
 			zap.Error(err),
 			zap.String("hint", "Please ensure libedr_core.dll is in the same directory or in PATH"),
 		)
@@ -128,13 +151,13 @@ func main() {
 
 	// 判断是否启用云端连接（独立模式 vs 云端模式）
 	standAloneMode := cfg.Cloud.Endpoint == ""
-	
+
 	var conn *comm.Connection // 声明在外层作用域以便 defer 使用
-	
+
 	if standAloneMode {
 		logger.Info("Running in standalone mode (no cloud connection)")
 		logger.Info("Events will be logged locally only")
-		
+
 		// 独立模式：只采集和记录日志，不连接云端
 		// 启动本地事件处理器
 		go func() {
@@ -155,7 +178,7 @@ func main() {
 	} else {
 		// 云端模式：连接到云端服务
 		logger.Info("Running in cloud mode", zap.String("endpoint", cfg.Cloud.Endpoint))
-		
+
 		// 创建 gRPC 连接
 		conn = comm.NewConnection(comm.ConnConfig{
 			Endpoint:   cfg.Cloud.Endpoint,

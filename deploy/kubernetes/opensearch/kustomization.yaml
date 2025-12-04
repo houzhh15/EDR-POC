@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: opensearch
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - statefulset.yaml
+  - service.yaml
+
+# 配置生成器
+configMapGenerator:
+  - name: opensearch-index-templates
+    files:
+      - index-templates/edr-events.json
+      - index-templates/edr-alerts.json
+      - index-templates/edr-assets.json
+  - name: opensearch-ism-policies
+    files:
+      - ism-policies/edr-lifecycle.json
+
+commonLabels:
+  app.kubernetes.io/part-of: edr
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: opensearchproject/opensearch
+    newTag: "2.11.0"
+
+# 副本数配置 (开发环境使用 1，生产环境调整为 3)
+replicas:
+  - name: opensearch
+    count: 1

@@ -20,25 +20,7 @@ type Producer interface {
 	Close() error
 }
 
-// SecurityEvent 安全事件结构
-type SecurityEvent struct {
-	EventID   string            `json:"event_id"`
-	EventType string            `json:"event_type"`
-	Timestamp time.Time         `json:"timestamp"`
-	Severity  int               `json:"severity"`
-	ECSFields map[string]string `json:"ecs_fields,omitempty"`
-	RawData   []byte            `json:"raw_data,omitempty"`
-}
-
-// EventMessage 事件消息
-type EventMessage struct {
-	AgentID    string           `json:"agent_id"`
-	TenantID   string           `json:"tenant_id"`
-	BatchID    string           `json:"batch_id"`
-	Events     []*SecurityEvent `json:"events"`
-	Timestamp  time.Time        `json:"timestamp"`
-	ReceivedAt time.Time        `json:"received_at"`
-}
+// 注意: SecurityEvent 和 EventMessage 已移动到 types.go
 
 // KafkaProducer Kafka 生产者实现
 type KafkaProducer struct {
