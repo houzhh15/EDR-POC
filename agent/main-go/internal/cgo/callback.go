@@ -29,6 +29,7 @@ var (
 
 // StartCollector 启动事件采集器
 // ch: 用于接收事件的通道
+// Windows平台使用 ETW 采集，其他平台使用占位实现
 func StartCollector(ch chan Event) error {
 	eventChanMu.Lock()
 	defer eventChanMu.Unlock()
@@ -39,11 +40,10 @@ func StartCollector(ch chan Event) error {
 
 	eventChan = ch
 
-	// 调用 C 层采集器启动（当前为占位实现，不传递回调）
-	err := C.edr_collector_start(nil, nil)
-	if goErr := toGoError(err); goErr != nil {
+	// 调用平台特定实现启动采集器
+	if err := startCollectorPlatform(); err != nil {
 		eventChan = nil
-		return goErr
+		return err
 	}
 
 	collectorRunning = true
@@ -59,9 +59,9 @@ func StopCollector() error {
 		return nil
 	}
 
-	err := C.edr_collector_stop()
-	if goErr := toGoError(err); goErr != nil {
-		return goErr
+	// 调用平台特定实现停止采集器
+	if err := stopCollectorPlatform(); err != nil {
+		return err
 	}
 
 	eventChan = nil
