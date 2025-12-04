@@ -207,7 +207,7 @@ func main() {
 		go heartbeatClient.Start(ctx)
 
 		// 创建事件客户端并启动批量发送
-		eventClient := comm.NewEventClient(conn, 100, 5*time.Second)
+		eventClient := comm.NewEventClient(conn, cfg.Agent.ID, 100, 5*time.Second)
 		go eventClient.StartBatchSender(ctx, eventChan)
 	}
 
