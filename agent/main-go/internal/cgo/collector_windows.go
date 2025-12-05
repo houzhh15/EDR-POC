@@ -11,6 +11,7 @@ package cgo
 #include "edr_errors.h"
 #include "event_buffer.h"
 #include <stdlib.h>
+#include <string.h>
 
 // 声明C层API(实际会在edr_core.h中定义)
 typedef void* edr_session_handle_t;
@@ -23,6 +24,21 @@ int edr_poll_process_events(
     int max_count,
     int* out_count
 );
+
+// 获取 C 层事件结构体的真实大小
+static inline size_t get_event_size(void) {
+    return sizeof(edr_process_event_t);
+}
+
+// 分配事件数组 (确保使用 C 层的 sizeof)
+static inline edr_process_event_t* alloc_events(int count) {
+    return (edr_process_event_t*)calloc(count, sizeof(edr_process_event_t));
+}
+
+// 释放事件数组
+static inline void free_events(edr_process_event_t* events) {
+    free(events);
+}
 */
 import "C"
 import (
@@ -130,14 +146,13 @@ func (pc *ProcessCollector) pollLoop() {
 	defer ticker.Stop()
 
 	const maxBatch = 100
-	// 使用 C.malloc 分配 C 内存,避免 Go GC 移动内存导致的崩溃
-	// Go 1.21+ 也可以用 runtime.Pinner,但 C.malloc 更保险
-	eventSize := C.size_t(unsafe.Sizeof(C.edr_process_event_t{}))
-	cEventsPtr := (*C.edr_process_event_t)(C.malloc(eventSize * C.size_t(maxBatch)))
+	// 使用 C 层的 calloc 分配内存,确保使用正确的 sizeof
+	// 避免 Go 和 C 之间结构体大小不一致导致的内存越界
+	cEventsPtr := C.alloc_events(C.int(maxBatch))
 	if cEventsPtr == nil {
 		return // 内存分配失败
 	}
-	defer C.free(unsafe.Pointer(cEventsPtr))
+	defer C.free_events(cEventsPtr)
 	
 	// 创建 Go slice 来访问 C 数组(不复制内存)
 	cEvents := unsafe.Slice(cEventsPtr, maxBatch)
