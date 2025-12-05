@@ -1,0 +1,32 @@
+# PostgreSQL 数据库配置
+database:
+  # 数据库连接参数
+  host: ${DB_HOST:localhost}
+  port: ${DB_PORT:5432}
+  database: ${DB_NAME:edr}
+  username: ${DB_USER:edr}
+  password: ${DB_PASSWORD:edr_secret}
+  ssl_mode: ${DB_SSL_MODE:disable}
+
+  # 连接池配置
+  pool:
+    max_open_conns: ${DB_MAX_OPEN_CONNS:25}
+    max_idle_conns: ${DB_MAX_IDLE_CONNS:5}
+    conn_max_lifetime: ${DB_CONN_MAX_LIFETIME:5m}
+    conn_max_idle_time: ${DB_CONN_MAX_IDLE_TIME:5m}
+
+  # 迁移配置
+  migration:
+    source: file://migrations
+    auto_migrate: ${DB_AUTO_MIGRATE:false}
+
+  # 健康检查配置
+  health:
+    enabled: true
+    interval: 30s
+    timeout: 5s
+
+  # 指标收集配置
+  metrics:
+    enabled: true
+    collect_interval: 15s

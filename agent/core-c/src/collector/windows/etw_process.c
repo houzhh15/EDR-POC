@@ -258,7 +258,8 @@ int etw_parse_process_start(
     // ETW事件包含: ParentId, ImageFileName, CommandLine等字段
     
     // 简化: 从扩展数据中提取(实际需要TDH解析)
-    if (event_record->UserDataLength >= sizeof(DWORD)) {
+    // 注意: 必须同时检查 UserData 不为 NULL 和 UserDataLength 足够
+    if (event_record->UserData != NULL && event_record->UserDataLength >= sizeof(DWORD)) {
         // 假设第一个DWORD是ParentPid(实际结构更复杂)
         DWORD* data = (DWORD*)event_record->UserData;
         out_event->ppid = data[0];
@@ -318,7 +319,8 @@ int etw_parse_process_end(
     out_event->event_type = EDR_PROCESS_END;
     
     // 从UserData提取ExitCode(需要TDH解析,这里简化)
-    if (event_record->UserDataLength >= sizeof(DWORD)) {
+    // 注意: 必须同时检查 UserData 不为 NULL 和 UserDataLength 足够
+    if (event_record->UserData != NULL && event_record->UserDataLength >= sizeof(DWORD)) {
         DWORD* data = (DWORD*)event_record->UserData;
         out_event->exit_code = (int32_t)data[0];
     }
@@ -341,8 +343,15 @@ void etw_process_event_callback(PEVENT_RECORD event_record, void* context) {
     // 递增总事件计数
     InterlockedIncrement64((volatile LONG64*)&consumer->total_events);
     
-    // 判断是否是进程事件(通过Provider GUID)
-    // 这里简化判断,实际应检查 event_record->EventHeader.ProviderId
+    // 验证 Provider GUID (Microsoft-Windows-Kernel-Process)
+    // {22fb2cd6-0e7b-422b-a0c7-2fad1fd0e716}
+    static const GUID EXPECTED_PROVIDER = 
+        {0x22fb2cd6, 0x0e7b, 0x422b, {0xa0, 0xc7, 0x2f, 0xad, 0x1f, 0xd0, 0xe7, 0x16}};
+    
+    if (memcmp(&event_record->EventHeader.ProviderId, &EXPECTED_PROVIDER, sizeof(GUID)) != 0) {
+        // 非预期 Provider 的事件,忽略
+        return;
+    }
     
     // 根据OpCode判断事件类型
     UCHAR opcode = event_record->EventHeader.EventDescriptor.Opcode;

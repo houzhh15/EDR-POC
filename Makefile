@@ -229,6 +229,52 @@ dev-reset:
 	@echo "✅ 开发环境已重置"
 
 # ============================================================
+# 数据库迁移
+# ============================================================
+# 数据库连接参数 (可通过环境变量覆盖)
+DB_HOST ?= localhost
+DB_PORT ?= 5432
+DB_USER ?= edr
+DB_PASSWORD ?= edr_secret
+DB_NAME ?= edr
+DB_SSL_MODE ?= disable
+DB_DSN := postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSL_MODE)
+MIGRATE_PATH := $(CLOUD_DIR)/migrations
+
+migrate-up:
+	@echo "⬆️  执行数据库迁移..."
+	@migrate -path $(MIGRATE_PATH) -database "$(DB_DSN)" up
+	@echo "✅ 迁移完成"
+
+migrate-down:
+	@echo "⬇️  回滚数据库迁移 (1步)..."
+	@migrate -path $(MIGRATE_PATH) -database "$(DB_DSN)" down 1
+	@echo "✅ 回滚完成"
+
+migrate-down-all:
+	@echo "⬇️  回滚所有数据库迁移..."
+	@migrate -path $(MIGRATE_PATH) -database "$(DB_DSN)" down -all
+	@echo "✅ 全部回滚完成"
+
+migrate-version:
+	@echo "📋 当前迁移版本:"
+	@migrate -path $(MIGRATE_PATH) -database "$(DB_DSN)" version
+
+migrate-force:
+	@echo "🔧 强制设置迁移版本为 $(VERSION_NUM)..."
+	@migrate -path $(MIGRATE_PATH) -database "$(DB_DSN)" force $(VERSION_NUM)
+	@echo "✅ 版本已设置"
+
+migrate-create:
+	@if [ -z "$(NAME)" ]; then \
+		echo "❌ 请指定迁移名称: make migrate-create NAME=xxx"; \
+		exit 1; \
+	fi
+	@echo "📝 创建新迁移: $(NAME)"
+	@migrate create -ext sql -dir $(MIGRATE_PATH) -seq $(NAME)
+	@echo "✅ 迁移文件已创建"
+
+# ============================================================
 # 代码生成
 # ============================================================
 proto-gen:
@@ -287,6 +333,14 @@ help:
 	@echo "  make proto-gen      - 生成 Protobuf 代码"
 	@echo "  make license-check  - 检查许可证合规性"
 	@echo "  make help           - 显示此帮助信息"
+	@echo ""
+	@echo "数据库迁移:"
+	@echo "  make migrate-up         - 执行所有未应用的迁移"
+	@echo "  make migrate-down       - 回滚最近一次迁移"
+	@echo "  make migrate-down-all   - 回滚所有迁移"
+	@echo "  make migrate-version    - 显示当前迁移版本"
+	@echo "  make migrate-force VERSION_NUM=x - 强制设置版本"
+	@echo "  make migrate-create NAME=xxx    - 创建新迁移文件"
 	@echo ""
 	@echo "============================================"
 	@echo "平台: $(PLATFORM) | 版本: $(VERSION)"
