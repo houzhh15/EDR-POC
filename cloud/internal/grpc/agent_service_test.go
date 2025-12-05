@@ -173,6 +173,7 @@ func TestHeartbeatSuccess(t *testing.T) {
 	ctx = context.WithValue(ctx, interceptors.TenantIDKey, "tenant-456")
 
 	req := &pb.HeartbeatRequest{
+		AgentId:              "agent-123", // Heartbeat 从请求体获取 agent_id
 		AgentVersion:         "1.0.0",
 		Hostname:             "test-host",
 		OsFamily:             "linux",
