@@ -371,14 +371,25 @@ int edr_poll_process_events(
         return EDR_ERR_INVALID_PARAM;
     }
     
+    *out_count = 0;  // 先初始化输出
+    
     if (max_count <= 0) {
-        *out_count = 0;
         return EDR_SUCCESS;
     }
     
     // 从Session的事件缓冲区批量pop事件
     edr_collector_session_t* session = (edr_collector_session_t*)handle;
+    
+    // 增加对 session 结构有效性的检查
     if (session->event_buffer == NULL) {
+        return EDR_ERR_NOT_INITIALIZED;
+    }
+    
+    // 验证 event_buffer 指针看起来合理 (简单的健全性检查)
+    // 检查 event_buffer 是否是有效的堆指针 (非零且对齐)
+    uintptr_t buffer_addr = (uintptr_t)session->event_buffer;
+    if (buffer_addr < 0x10000 || (buffer_addr & 0x7) != 0) {
+        // 地址看起来无效 (太小或未对齐)
         return EDR_ERR_NOT_INITIALIZED;
     }
     

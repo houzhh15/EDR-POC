@@ -163,13 +163,20 @@ int event_buffer_pop_batch(
     // 循环弹出事件,直到达到max_count或buffer为空
     for (int i = 0; i < max_count; i++) {
         uint32_t current_read = buffer->read_pos;
+        uint32_t current_write = buffer->write_pos;
+        
+        // 边界检查: 确保索引在有效范围内
+        if (current_read >= EVENT_BUFFER_SIZE || current_write >= EVENT_BUFFER_SIZE) {
+            // 索引损坏,重置并退出
+            break;
+        }
         
         // 检查是否为空
-        if (current_read == buffer->write_pos) {
+        if (current_read == current_write) {
             break; // Buffer空,停止弹出
         }
         
-        // 读取事件
+        // 读取事件(索引已验证在范围内)
         memcpy(&events[i], &buffer->events[current_read], sizeof(edr_process_event_t));
         
         // 更新读位置

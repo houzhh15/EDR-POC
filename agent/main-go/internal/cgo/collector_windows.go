@@ -130,8 +130,17 @@ func (pc *ProcessCollector) pollLoop() {
 	defer ticker.Stop()
 
 	const maxBatch = 100
-	// 分配C数组用于批量获取事件
-	cEvents := make([]C.edr_process_event_t, maxBatch)
+	// 使用 C.malloc 分配 C 内存,避免 Go GC 移动内存导致的崩溃
+	// Go 1.21+ 也可以用 runtime.Pinner,但 C.malloc 更保险
+	eventSize := C.size_t(unsafe.Sizeof(C.edr_process_event_t{}))
+	cEventsPtr := (*C.edr_process_event_t)(C.malloc(eventSize * C.size_t(maxBatch)))
+	if cEventsPtr == nil {
+		return // 内存分配失败
+	}
+	defer C.free(unsafe.Pointer(cEventsPtr))
+	
+	// 创建 Go slice 来访问 C 数组(不复制内存)
+	cEvents := unsafe.Slice(cEventsPtr, maxBatch)
 
 	for {
 		select {
@@ -142,7 +151,7 @@ func (pc *ProcessCollector) pollLoop() {
 			var count C.int
 			ret := C.edr_poll_process_events(
 				pc.handle,
-				&cEvents[0],
+				cEventsPtr,
 				C.int(maxBatch),
 				&count,
 			)

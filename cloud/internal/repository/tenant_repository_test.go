@@ -1,19 +1,19 @@
 package repository
 
 import (
-"context"
-"testing"
-"time"
+	"context"
+	"testing"
+	"time"
 
-"github.com/DATA-DOG/go-sqlmock"
-"github.com/google/uuid"
-"github.com/stretchr/testify/assert"
-"github.com/stretchr/testify/require"
-"go.uber.org/zap"
-"gorm.io/driver/postgres"
-"gorm.io/gorm"
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
-"github.com/houzhh15/EDR-POC/cloud/internal/repository/models"
+	"github.com/houzhh15/EDR-POC/cloud/internal/repository/models"
 )
 
 func setupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, func()) {
@@ -21,9 +21,9 @@ func setupMockDB(t *testing.T) (*gorm.DB, sqlmock.Sqlmock, func()) {
 	require.NoError(t, err)
 
 	dialector := postgres.New(postgres.Config{
-Conn:       sqlDB,
-DriverName: "postgres",
-})
+		Conn:       sqlDB,
+		DriverName: "postgres",
+	})
 
 	db, err := gorm.Open(dialector, &gorm.Config{
 		SkipDefaultTransaction: true,
@@ -75,13 +75,13 @@ func TestTenantRepository_FindByID(t *testing.T) {
 	tenantID := uuid.New()
 
 	rows := sqlmock.NewRows([]string{
-"id", "name", "display_name", "status",
-"max_agents", "max_events_per_day", "contact_email", "contact_phone",
-"settings", "created_at", "updated_at",
-}).AddRow(
-tenantID, "test-tenant", "Test Tenant", "active",
-100, 10000000, "", "",
-[]byte("{}"), time.Now(), time.Now(),
+		"id", "name", "display_name", "status",
+		"max_agents", "max_events_per_day", "contact_email", "contact_phone",
+		"settings", "created_at", "updated_at",
+	}).AddRow(
+		tenantID, "test-tenant", "Test Tenant", "active",
+		100, 10000000, "", "",
+		[]byte("{}"), time.Now(), time.Now(),
 	)
 
 	mock.ExpectQuery(`SELECT \* FROM "tenants" WHERE`).
@@ -126,10 +126,10 @@ func TestTenantRepository_FindAll(t *testing.T) {
 
 	// Mock select query
 	rows := sqlmock.NewRows([]string{
-"id", "name", "display_name", "status",
-"max_agents", "max_events_per_day", "contact_email", "contact_phone",
-"settings", "created_at", "updated_at",
-}).
+		"id", "name", "display_name", "status",
+		"max_agents", "max_events_per_day", "contact_email", "contact_phone",
+		"settings", "created_at", "updated_at",
+	}).
 		AddRow(uuid.New(), "tenant1", "Tenant 1", "active", 100, 10000000, "", "", []byte("{}"), time.Now(), time.Now()).
 		AddRow(uuid.New(), "tenant2", "Tenant 2", "active", 100, 10000000, "", "", []byte("{}"), time.Now(), time.Now())
 
@@ -222,15 +222,15 @@ func TestUserRepository_FindByID_WithTenantScope(t *testing.T) {
 	userID := uuid.New()
 
 	rows := sqlmock.NewRows([]string{
-"id", "tenant_id", "username", "email", "password_hash",
-"role", "status", "display_name", "phone",
-"last_login_at", "last_login_ip", "login_count",
-"created_at", "updated_at", "deleted_at",
-}).AddRow(
-userID, tenantID, "testuser", "test@example.com", "hashed",
-"viewer", "active", "Test User", "",
-nil, "", 0,
-time.Now(), time.Now(), nil,
+		"id", "tenant_id", "username", "email", "password_hash",
+		"role", "status", "display_name", "phone",
+		"last_login_at", "last_login_ip", "login_count",
+		"created_at", "updated_at", "deleted_at",
+	}).AddRow(
+		userID, tenantID, "testuser", "test@example.com", "hashed",
+		"viewer", "active", "Test User", "",
+		nil, "", 0,
+		time.Now(), time.Now(), nil,
 	)
 
 	mock.ExpectQuery(`SELECT \* FROM "users" WHERE`).
@@ -314,8 +314,8 @@ func TestPaginationScope(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-scope := PaginationScope(tt.limit, tt.offset)
-assert.NotNil(t, scope)
-})
+			scope := PaginationScope(tt.limit, tt.offset)
+			assert.NotNil(t, scope)
+		})
 	}
 }
